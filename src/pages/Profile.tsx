@@ -9,10 +9,10 @@ export default function Profile() {
     const { lifetimeCoins } = useGameStore();
 
     // State for form fields
-    const [seed, setSeed] = useState(user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`);
+    const [seed, setSeed] = useState(user?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`);
     const [isEditing, setIsEditing] = useState(false);
     const [username, setUsername] = useState(user?.username || '');
-    const [password, setPassword] = useState(user?.password || '');
+    const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
 
@@ -93,7 +93,9 @@ export default function Profile() {
                         <p className="text-[10px] text-gray-500 text-center">Mássimo 2MB (JPG, PNG, GIF)</p>
                         <button
                             onClick={() => {
-                                updateUser({ avatar: seed });
+                                // For now just mocking the update locally since we don't have storage bucket setup
+                                // In real app we would upload file to Supabase Storage and get URL
+                                updateUser({ avatar_url: seed });
                                 toast.success("Avatar actualizado");
                             }}
                             className="bg-cyber-DEFAULT text-black font-black uppercase text-sm py-2 rounded w-full hover:bg-cyan-400 hover:scale-[1.02] transition-all shadow-[0_0_15px_rgba(34,211,238,0.4)]"

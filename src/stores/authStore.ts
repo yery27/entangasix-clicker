@@ -18,9 +18,10 @@ interface AuthState {
     register: (email: string, password: string, username: string) => Promise<void>;
     logout: () => Promise<void>;
     checkSession: () => Promise<void>;
+    updateUser: (updates: Partial<User> & { password?: string }) => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
     user: null,
     isAuthenticated: false,
     loading: true,
@@ -109,5 +110,35 @@ export const useAuthStore = create<AuthState>((set) => ({
             set({ user: null, isAuthenticated: false });
         }
         set({ loading: false });
+    },
+
+    updateUser: async (updates: Partial<User> & { password?: string }) => {
+        const { user } = get();
+        if (!user) return;
+
+        // Update auth (password)
+        if (updates.password) {
+            const { error } = await supabase.auth.updateUser({ password: updates.password });
+            if (error) throw error;
+        }
+
+        // Update profile (username, avatar)
+        const profileUpdates: any = {};
+        if (updates.username) profileUpdates.username = updates.username;
+        if (updates.avatar_url) profileUpdates.avatar_url = updates.avatar_url;
+
+        if (Object.keys(profileUpdates).length > 0) {
+            const { error } = await supabase
+                .from('profiles')
+                .update(profileUpdates)
+                .eq('id', user.id);
+
+            if (error) throw error;
+        }
+
+        // Update local state
+        set(state => ({
+            user: state.user ? { ...state.user, ...updates } : null
+        }));
     }
 }));

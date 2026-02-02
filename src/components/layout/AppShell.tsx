@@ -75,7 +75,7 @@ export function AppShell() {
 
                     <div className="flex items-center gap-3 px-2">
                         <Link to="/profile" className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden border border-white/20 hover:border-cyber-DEFAULT transition-colors">
-                            {user?.avatar ? <img src={user.avatar} className="w-full h-full object-cover" /> : <User size={14} />}
+                            {user?.avatar_url ? <img src={user.avatar_url} className="w-full h-full object-cover" /> : <User size={14} />}
                         </Link>
                         <div className="overflow-hidden">
                             <p className="text-sm font-medium truncate">{user?.username}</p>
@@ -99,7 +99,7 @@ export function AppShell() {
                             <MessageSquare size={16} />
                         </button>
                         <Link to="/profile" className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden border border-white/20 hover:border-cyber-DEFAULT transition-colors">
-                            {user?.avatar ? <img src={user.avatar} className="w-full h-full object-cover" /> : <User size={14} />}
+                            {user?.avatar_url ? <img src={user.avatar_url} className="w-full h-full object-cover" /> : <User size={14} />}
                         </Link>
                         <span className="text-cyber-yellow font-bold font-mono">{formatCurrency(coins)}</span>
                     </div>
