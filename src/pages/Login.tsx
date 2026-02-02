@@ -5,7 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
 export default function Login() {
-    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuthStore();
@@ -13,15 +13,15 @@ export default function Login() {
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!username.trim() || !password.trim()) {
-            toast.error("Por favor, introduce usuario y contraseña");
+        if (!email.trim() || !password.trim()) {
+            toast.error("Por favor, introduce email y contraseña");
             return;
         }
 
         setIsLoading(true);
         try {
-            await login(username, password);
-            toast.success(`Bienvenido al sistema, ${username}!`);
+            await login(email, password);
+            toast.success(`Bienvenido de nuevo!`);
             navigate('/');
         } catch (error: any) {
             toast.error(error.message || 'Error al iniciar sesión');
@@ -46,13 +46,13 @@ export default function Login() {
 
                 <form onSubmit={handleLogin} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Nombre de Usuario</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
                         <input
-                            type="text"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-cyber-DEFAULT focus:ring-1 focus:ring-cyber-DEFAULT transition-all"
-                            placeholder="Ej: Neo"
+                            placeholder="neo@matrix.com"
                         />
                     </div>
 

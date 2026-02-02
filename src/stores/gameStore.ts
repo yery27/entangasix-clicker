@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { SHOP_ITEMS } from '../lib/constants';
+import { supabase } from '../lib/supabase';
 
 interface GameState {
     coins: number;
@@ -18,6 +19,10 @@ interface GameState {
     buyItem: (type: 'click' | 'idle', itemId: string) => boolean;
     tick: () => void; // Called every second
     toggleSound: () => void;
+
+    // Cloud Sync
+    loadGame: () => Promise<void>;
+    saveGame: () => Promise<void>;
 }
 
 export const useGameStore = create<GameState>()(
@@ -29,12 +34,11 @@ export const useGameStore = create<GameState>()(
             autoClickPower: 0,
             inventory: {},
             lastSaveTime: Date.now(),
-            soundEnabled: true, // Default ON
+            soundEnabled: true,
 
             toggleSound: () => {
                 const { soundEnabled } = get();
-                const newState = !soundEnabled;
-                set({ soundEnabled: newState });
+                set({ soundEnabled: !soundEnabled });
             },
 
             click: () => {
@@ -48,7 +52,7 @@ export const useGameStore = create<GameState>()(
             addCoins: (amount) => {
                 set(state => ({
                     coins: state.coins + amount,
-                    lifetimeCoins: state.lifetimeCoins + Math.max(0, amount) // Only add positive amounts to lifetime
+                    lifetimeCoins: state.lifetimeCoins + Math.max(0, amount)
                 }));
             },
 
@@ -63,56 +67,122 @@ export const useGameStore = create<GameState>()(
 
             buyItem: (type, itemId) => {
                 const state = get();
-
+                let item;
                 if (type === 'click') {
-                    const item = SHOP_ITEMS.click.find(i => i.id === itemId);
-                    if (!item) return false;
-
-                    const currentQty = state.inventory[itemId] || 0;
-                    const cost = Math.floor(item.cost * Math.pow(1.15, currentQty));
-
-                    if (state.coins >= cost) {
-                        set(s => ({
-                            coins: s.coins - cost,
-                            inventory: { ...s.inventory, [itemId]: currentQty + 1 },
-                            clickPower: s.clickPower + item.increase,
-                        }));
-                        return true;
-                    }
+                    item = SHOP_ITEMS.click.find(i => i.id === itemId);
                 } else {
-                    const item = SHOP_ITEMS.idle.find(i => i.id === itemId);
-                    if (!item) return false;
-
-                    const currentQty = state.inventory[itemId] || 0;
-                    const cost = Math.floor(item.cost * Math.pow(1.15, currentQty));
-
-                    if (state.coins >= cost) {
-                        set(s => ({
-                            coins: s.coins - cost,
-                            inventory: { ...s.inventory, [itemId]: currentQty + 1 },
-                            autoClickPower: s.autoClickPower + item.cps,
-                        }));
-                        return true;
-                    }
+                    item = SHOP_ITEMS.idle.find(i => i.id === itemId);
                 }
 
+                if (!item) return false;
+
+                const currentQty = state.inventory[itemId] || 0;
+                const cost = Math.floor(item.cost * Math.pow(1.15, currentQty));
+
+                if (state.coins >= cost) {
+                    let newClickPower = state.clickPower;
+                    let newAutoClickPower = state.autoClickPower;
+
+                    if (type === 'click' && 'increase' in item) {
+                        newClickPower += item.increase;
+                    } else if (type === 'idle' && 'cps' in item) {
+                        newAutoClickPower += item.cps;
+                    }
+
+                    set(s => ({
+                        coins: s.coins - cost,
+                        inventory: { ...s.inventory, [itemId]: currentQty + 1 },
+                        clickPower: newClickPower,
+                        autoClickPower: newAutoClickPower,
+                    }));
+                    // Trigger a save after purchase
+                    get().saveGame();
+                    return true;
+                }
                 return false;
             },
 
             tick: () => {
-                const { autoClickPower } = get();
-                // Calculate offline progress could be done here based on lastSaveTime
-                // For now just simple tick
+                const { autoClickPower, lastSaveTime, saveGame } = get();
+                const now = Date.now();
+
                 if (autoClickPower > 0) {
                     set(state => ({
                         coins: state.coins + autoClickPower,
                         lifetimeCoins: state.lifetimeCoins + autoClickPower,
-                        lastSaveTime: Date.now()
+                        lastSaveTime: now
                     }));
                 } else {
-                    set({ lastSaveTime: Date.now() });
+                    set({ lastSaveTime: now });
+                }
+
+                // Auto-save every 10 seconds
+                if (now - lastSaveTime > 10000) {
+                    saveGame();
+                    set({ lastSaveTime: now });
                 }
             },
+
+            loadGame: async () => {
+                try {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user) return;
+
+                    const { data: profile, error } = await supabase
+                        .from('profiles')
+                        .select('coins, lifetime_coins, click_power, auto_click_power, inventory')
+                        .eq('id', user.id)
+                        .single();
+
+                    if (error && error.code !== 'PGRST116') {
+                        console.error('Error loading game:', error);
+                        return;
+                    }
+
+                    if (profile) {
+                        set({
+                            coins: Number(profile.coins),
+                            lifetimeCoins: Number(profile.lifetime_coins),
+                            clickPower: Number(profile.click_power),
+                            autoClickPower: Number(profile.auto_click_power),
+                            inventory: typeof profile.inventory === 'string'
+                                ? JSON.parse(profile.inventory)
+                                : profile.inventory || {}
+                        });
+                        console.log('Game loaded from cloud');
+                    }
+                } catch (e) {
+                    console.error('Failed to load game:', e);
+                }
+            },
+
+            saveGame: async () => {
+                try {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user) return;
+
+                    const state = get();
+
+                    const updates = {
+                        id: user.id,
+                        coins: state.coins,
+                        lifetime_coins: state.lifetimeCoins,
+                        click_power: state.clickPower,
+                        auto_click_power: state.autoClickPower,
+                        inventory: state.inventory,
+                        last_seen: new Date().toISOString(),
+                    };
+
+                    const { error } = await supabase
+                        .from('profiles')
+                        .upsert(updates);
+
+                    if (error) throw error;
+                    // console.log('Game saved to cloud');
+                } catch (e) {
+                    console.error('Failed to save game:', e);
+                }
+            }
         }),
         {
             name: 'game-storage',

@@ -2,41 +2,54 @@ import { useEffect, useState } from 'react';
 import { Trophy, RefreshCw } from 'lucide-react';
 import { cn, formatCurrency } from '../lib/utils';
 import { useAuthStore } from '../stores/authStore';
-import { useGameStore } from '../stores/gameStore';
+import { supabase } from '../lib/supabase';
 
 export default function Leaderboard() {
     const { user } = useAuthStore();
-    const { lifetimeCoins } = useGameStore();
     const [leaders, setLeaders] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
 
     const fetchLeaders = async () => {
         setLoading(true);
-        // Mock API delay
-        await new Promise(r => setTimeout(r, 800));
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('id, username, avatar_url, lifetime_coins')
+                .order('lifetime_coins', { ascending: false })
+                .limit(50);
 
-        // Get all registered users from authStore
-        const registeredUsers = useAuthStore.getState().users;
+            if (error) throw error;
 
-        const leaderboardData = registeredUsers.map(u => {
-            if (u.id === user?.id) {
-                return { ...u, score: lifetimeCoins };
+            if (data) {
+                const formattedLeaders = data.map(profile => ({
+                    id: profile.id,
+                    username: profile.username || 'Anon',
+                    avatar: profile.avatar_url,
+                    score: profile.lifetime_coins
+                }));
+                setLeaders(formattedLeaders);
             }
-            // Mock score for others
-            return { ...u, score: Math.floor(Math.random() * 1000) };
-        });
-
-        // Ensure current user is in list if not saved yet
-        if (user && !leaderboardData.find(u => u.id === user.id)) {
-            leaderboardData.push({ ...user, score: lifetimeCoins } as any);
+        } catch (error) {
+            console.error('Error fetching leaderboard:', error);
+        } finally {
+            setLoading(false);
         }
-
-        setLeaders(leaderboardData.sort((a, b) => b.score - a.score));
-        setLoading(false);
     };
 
     useEffect(() => {
         fetchLeaders();
+
+        // Real-time subscription
+        const channel = supabase
+            .channel('leaderboard')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+                fetchLeaders();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     return (

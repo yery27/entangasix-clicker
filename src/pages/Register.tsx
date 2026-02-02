@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 
 export default function Register() {
     const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { register } = useAuthStore();
@@ -13,14 +14,14 @@ export default function Register() {
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!username.trim() || !password.trim()) {
+        if (!username.trim() || !email.trim() || !password.trim()) {
             toast.error("Rellena todos los campos");
             return;
         }
 
         setIsLoading(true);
         try {
-            await register(username, password);
+            await register(email, password, username);
             toast.success(`Bienvenido a la resistencia, ${username}!`);
             navigate('/');
         } catch (error: any) {
@@ -43,6 +44,17 @@ export default function Register() {
                 </div>
 
                 <form onSubmit={handleRegister} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-cyber-DEFAULT focus:ring-1 focus:ring-cyber-DEFAULT transition-all"
+                            placeholder="tu@email.com"
+                        />
+                    </div>
+
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">Usuario</label>
                         <input

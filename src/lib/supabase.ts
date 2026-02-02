@@ -4,8 +4,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 // TODO: Replace with your real Supabase keys
-const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
-const SUPABASE_KEY = 'YOUR_ANON_KEY';
+const SUPABASE_URL = 'https://ebblkvpsqdjlhnzjbyir.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViYmxrdnBzcWRqbGhuempieWlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjUwMzUsImV4cCI6MjA4NTY0MTAzNX0.qUFJIQ-USKzl4Qq2GlK-0WHYw9pD3_g9iR9M0vZ79nw';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 

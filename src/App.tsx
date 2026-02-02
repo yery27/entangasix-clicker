@@ -19,7 +19,18 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { tick } = useGameStore();
+  const { tick, loadGame } = useGameStore();
+  const { checkSession, isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    checkSession();
+  }, [checkSession]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadGame();
+    }
+  }, [isAuthenticated, loadGame]);
 
   // Game Loop
   useEffect(() => {
