@@ -1,5 +1,7 @@
 # Entangasix Clicker
-
+<div align="center">
+  <img src="https://raw.githubusercontent.com/yery27/yery27/main/assets/casino-banner.png" alt="Casino Clicker Preview" width="100%" style="border-radius: 10px; box-shadow: 0px 0px 20px rgba(0,0,0,0.5);">
+</div>
 Un juego incremental Cyberpunk con características de Casino, diseñado para la dominación total de la clase.
 
 ## 🚀 Despliegue en 3 Minutos
