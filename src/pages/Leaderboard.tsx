@@ -43,7 +43,7 @@ export default function Leaderboard() {
     useEffect(() => {
         fetchLeaders();
 
-        // Real-time subscription
+        // 1. Real-time subscription (Fastest)
         const channel = supabase
             .channel('leaderboard')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
@@ -51,8 +51,15 @@ export default function Leaderboard() {
             })
             .subscribe();
 
+        // 2. Polling Fallback (Guaranteed reliability)
+        // If sockets fail, this ensures we still update every 5 seconds
+        const interval = setInterval(() => {
+            fetchLeaders();
+        }, 5000);
+
         return () => {
             supabase.removeChannel(channel);
+            clearInterval(interval);
         };
     }, []);
 
