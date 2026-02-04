@@ -139,8 +139,8 @@ export const useGameStore = create<GameState>()(
                     set({ lastSaveTime: now });
                 }
 
-                // Auto-save every 10 seconds
-                if (now - lastSaveTime > 10000) {
+                // Auto-save every 3 seconds (Real-time feel)
+                if (now - lastSaveTime > 3000) {
                     saveGame();
                     set({ lastSaveTime: now });
                 }
@@ -169,18 +169,30 @@ export const useGameStore = create<GameState>()(
                         return;
                     }
 
+                    const localState = get();
+
                     if (profile) {
-                        // Logic: Always trust cloud on initial load if it exists
-                        set({
-                            coins: Number(profile.coins),
-                            lifetimeCoins: Number(profile.lifetime_coins),
-                            clickPower: Number(profile.click_power),
-                            autoClickPower: Number(profile.auto_click_power),
-                            inventory: typeof profile.inventory === 'string'
-                                ? JSON.parse(profile.inventory)
-                                : profile.inventory || {}
-                        });
-                        console.log('Game loaded from cloud');
+                        const cloudLifetime = Number(profile.lifetime_coins);
+                        const localLifetime = localState.lifetimeCoins;
+
+                        // SMART LOAD: Conflict Resolution
+                        if (localLifetime > cloudLifetime) {
+                            console.log('Conflict detected: Local progress is ahead of Cloud. Trusting Local & Saving...');
+                            set({ isLoaded: true });
+                            await get().saveGame();
+                        } else {
+                            // Cloud is same or ahead, trust Cloud
+                            console.log('Loading game from cloud (Cloud is ahead or synced)...');
+                            set({
+                                coins: Number(profile.coins),
+                                lifetimeCoins: Number(profile.lifetime_coins),
+                                clickPower: Number(profile.click_power),
+                                autoClickPower: Number(profile.auto_click_power),
+                                inventory: typeof profile.inventory === 'string'
+                                    ? JSON.parse(profile.inventory)
+                                    : profile.inventory || {}
+                            });
+                        }
                     }
 
                     // Critical: Allow saving only after we've attempted to load

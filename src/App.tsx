@@ -46,6 +46,9 @@ export default function App() {
     return () => {
       active = false;
       if (cleanup) cleanup();
+
+      // Attempt to save on unmount/close
+      useGameStore.getState().saveGame();
     };
   }, [isAuthenticated, loadGame]);
 

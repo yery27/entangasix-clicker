@@ -42,12 +42,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 .eq('id', data.user.id)
                 .single();
 
+            if (!profile) {
+                await supabase.auth.signOut();
+                throw new Error('Cuenta deshabilitada o no encontrada.');
+            }
+
             set({
                 user: {
                     id: data.user.id,
                     email: data.user.email,
-                    username: profile?.username || data.user.email?.split('@')[0] || 'User',
-                    avatar_url: profile?.avatar_url,
+                    username: profile.username || 'User',
+                    avatar_url: profile.avatar_url,
                 },
                 isAuthenticated: true
             });
@@ -97,15 +102,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 .eq('id', session.user.id)
                 .single();
 
-            set({
-                user: {
-                    id: session.user.id,
-                    email: session.user.email,
-                    username: profile?.username || session.user.user_metadata.username || 'User',
-                    avatar_url: profile?.avatar_url || session.user.user_metadata.avatar_url,
-                },
-                isAuthenticated: true
-            });
+            if (!profile) {
+                console.warn("Profile missing for user, logging out.");
+                await supabase.auth.signOut();
+                set({ user: null, isAuthenticated: false });
+            } else {
+                set({
+                    user: {
+                        id: session.user.id,
+                        email: session.user.email,
+                        username: profile.username || session.user.user_metadata.username || 'User',
+                        avatar_url: profile.avatar_url || session.user.user_metadata.avatar_url,
+                    },
+                    isAuthenticated: true
+                });
+            }
         } else {
             set({ user: null, isAuthenticated: false });
         }
