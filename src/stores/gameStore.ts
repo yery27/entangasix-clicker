@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { toast } from 'sonner';
 import { SHOP_ITEMS } from '../lib/constants';
 import { supabase } from '../lib/supabase';
 
@@ -149,14 +150,7 @@ export const useGameStore = create<GameState>()(
             loadGame: async () => {
                 try {
                     const { data: { user } } = await supabase.auth.getUser();
-                    if (!user) {
-                        // Even if no user, we consider 'load' complete for anonymous usage (or just abort)
-                        // But for safety, let's say isLoaded = true only if we attempted a fetch or sure we are offline?
-                        // Actually, if !user, we probably shouldn't set isLoaded=true for cloud purposes, 
-                        // BUT if the user proceeds to play, we might want to allow saving locally? 
-                        // The persist middleware handles local storage. This is cloud load.
-                        return;
-                    }
+                    if (!user) return;
 
                     const { data: profile, error } = await supabase
                         .from('profiles')
@@ -166,6 +160,7 @@ export const useGameStore = create<GameState>()(
 
                     if (error && error.code !== 'PGRST116') {
                         console.error('Error loading game:', error);
+                        // toast.error('Error cargando partida: ' + error.message);
                         return;
                     }
 
@@ -177,12 +172,12 @@ export const useGameStore = create<GameState>()(
 
                         // SMART LOAD: Conflict Resolution
                         if (localLifetime > cloudLifetime) {
-                            console.log('Conflict detected: Local progress is ahead of Cloud. Trusting Local & Saving...');
+                            console.log('Conflict detected: Trusting Local...');
+                            toast.info('📅 Sincronizando progreso local con la nube...');
                             set({ isLoaded: true });
                             await get().saveGame();
                         } else {
-                            // Cloud is same or ahead, trust Cloud
-                            console.log('Loading game from cloud (Cloud is ahead or synced)...');
+                            console.log('Loading game from cloud...');
                             set({
                                 coins: Number(profile.coins),
                                 lifetimeCoins: Number(profile.lifetime_coins),
@@ -194,8 +189,6 @@ export const useGameStore = create<GameState>()(
                             });
                         }
                     }
-
-                    // Critical: Allow saving only after we've attempted to load
                     set({ isLoaded: true });
 
                 } catch (e) {
@@ -204,17 +197,24 @@ export const useGameStore = create<GameState>()(
             },
 
             saveGame: async () => {
-                // Safety Guard: Do not save if we haven't loaded yet
+                // Safety Guard
                 if (!get().isLoaded) {
-                    console.warn('Prevented save before load to avoid overwriting cloud data.');
+                    // console.warn('Prevented save before load');
                     return;
                 }
 
                 try {
                     const { data: { user } } = await supabase.auth.getUser();
-                    if (!user) return;
+                    if (!user) {
+                        // toast.error('No estás logueado. No se guarda.');
+                        return;
+                    }
 
                     const state = get();
+
+                    // Optimistic UI for saving (optional, maybe too spammy? let's keep it mostly silent unless it errors, 
+                    // OR specifically for this debug session, let's show SUCCESS to confirm it works)
+                    // toast.loading('Guardando...', { id: 'save-toast' });
 
                     const updates = {
                         id: user.id,
@@ -230,7 +230,13 @@ export const useGameStore = create<GameState>()(
                         .from('profiles')
                         .upsert(updates);
 
-                    if (error) throw error;
+                    if (error) {
+                        toast.error('❌ Error al guardar: ' + error.message);
+                        throw error;
+                    } else {
+                        // Uncomment this if you want visible confirmation every aut-save (spammy but useful now)
+                        // toast.success('✅ Progreso guardado'); 
+                    }
                 } catch (e) {
                     console.error('Failed to save game:', e);
                 }
