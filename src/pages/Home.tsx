@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../stores/gameStore';
 import { formatCurrency, cn } from '../lib/utils';
-import { RANKS } from '../lib/constants';
+import { RANKS, COSMETIC_ITEMS } from '../lib/constants';
 import { Zap, TrendingUp } from 'lucide-react';
 
 export default function Home() {
@@ -110,19 +110,45 @@ export default function Home() {
 
                     {/* Floating Numbers */}
                     <AnimatePresence>
-                        {clicks.map((click) => (
-                            <motion.div
-                                key={click.id}
-                                initial={{ opacity: 1, y: click.y - 100, x: click.x - 100 }} // Centered somewhat
-                                animate={{ opacity: 0, y: click.y - 250 }}
-                                exit={{ opacity: 0 }}
-                                transition={{ duration: 0.8 }}
-                                className="absolute top-0 left-0 text-2xl font-bold text-white pointer-events-none select-none z-50 text-shadow"
-                                style={{ left: 0, top: 0, marginLeft: click.x, marginTop: click.y }}
-                            >
-                                +{click.val}
-                            </motion.div>
-                        ))}
+                        {clicks.map((click) => {
+                            const equippedEffectId = useGameStore.getState().cosmetics.equipped.click_effect;
+                            const effect = COSMETIC_ITEMS.effects.find(e => e.id === equippedEffectId);
+                            const isRainbow = effect?.color === 'rainbow';
+
+                            return (
+                                <motion.div
+                                    key={click.id}
+                                    initial={{ opacity: 1, y: click.y - 100, x: click.x - 100, scale: 0.5 }}
+                                    animate={{
+                                        opacity: 0,
+                                        y: click.y - 300,
+                                        scale: 1.5,
+                                        rotate: Math.random() * 20 - 10
+                                    }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.8, ease: "easeOut" }}
+                                    className={cn(
+                                        "absolute top-0 left-0 text-4xl font-black pointer-events-none select-none z-50 flex items-center gap-2",
+                                        !effect && "text-white"
+                                    )}
+                                    style={{
+                                        left: 0, top: 0, marginLeft: click.x, marginTop: click.y,
+                                        color: isRainbow ? undefined : effect?.color,
+                                        textShadow: isRainbow
+                                            ? '0 0 10px rgba(255,255,255,0.8)'
+                                            : effect?.color ? `0 0 20px ${effect.color}` : '0 0 10px rgba(0,0,0,0.5)',
+                                        backgroundImage: isRainbow ? 'linear-gradient(to right, #ef5350, #f48fb1, #7e57c2, #2196f3, #26c6da, #43a047, #eeff41, #f9a825, #ff5722)' : undefined,
+                                        WebkitBackgroundClip: isRainbow ? 'text' : undefined,
+                                        WebkitTextFillColor: isRainbow ? 'transparent' : undefined,
+                                    }}
+                                >
+                                    +{click.val}
+                                    {effect?.id === 'effect_money' && '💸'}
+                                    {effect?.id === 'effect_fire' && '🔥'}
+                                    {effect?.id === 'effect_lightning' && '⚡'}
+                                </motion.div>
+                            );
+                        })}
                     </AnimatePresence>
                 </div>
 

@@ -7,9 +7,10 @@ import { useAuthStore } from '../../stores/authStore';
 import { useGameStore } from '../../stores/gameStore';
 import { formatCurrency } from '../../lib/utils';
 import { SocialPanel } from '../social/SocialPanel';
+import { COSMETIC_ITEMS } from '../../lib/constants';
 
 export function AppShell() {
-    const { coins } = useGameStore();
+    const { coins, cosmetics } = useGameStore();
     const { logout, user } = useAuthStore();
     const location = useLocation();
     const [isSocialOpen, setIsSocialOpen] = useState(false);
@@ -20,6 +21,9 @@ export function AppShell() {
         { to: '/casino', icon: Joystick, label: 'Casino' },
         { to: '/leaderboard', icon: Trophy, label: 'Ranking' },
     ];
+
+    const equippedFrame = COSMETIC_ITEMS.frames.find(f => f.id === cosmetics.equipped.frame);
+    const frameStyle = equippedFrame?.style || "border-white/20 hover:border-cyber-DEFAULT";
 
     return (
         <div className="min-h-screen flex flex-col md:flex-row bg-cyber-dark text-white relative">
@@ -74,7 +78,7 @@ export function AppShell() {
                     </div>
 
                     <div className="flex items-center gap-3 px-2">
-                        <Link to="/profile" className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden border border-white/20 hover:border-cyber-DEFAULT transition-colors">
+                        <Link to="/profile" className={cn("w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden border transition-all duration-300", frameStyle)}>
                             {user?.avatar_url ? <img src={user.avatar_url} className="w-full h-full object-cover" /> : <User size={14} />}
                         </Link>
                         <div className="overflow-hidden">
@@ -98,7 +102,7 @@ export function AppShell() {
                         >
                             <MessageSquare size={16} />
                         </button>
-                        <Link to="/profile" className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden border border-white/20 hover:border-cyber-DEFAULT transition-colors">
+                        <Link to="/profile" className={cn("w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden border transition-all duration-300", frameStyle)}>
                             {user?.avatar_url ? <img src={user.avatar_url} className="w-full h-full object-cover" /> : <User size={14} />}
                         </Link>
                         <span className="text-cyber-yellow font-bold font-mono">{formatCurrency(coins)}</span>

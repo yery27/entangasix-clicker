@@ -4,6 +4,7 @@ import { useChatStore } from '../../stores/chatStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Users, MessageSquare, Send, UserPlus, Check, Circle } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { COSMETIC_ITEMS } from '../../lib/constants';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -67,6 +68,11 @@ export const SocialPanel = ({ isOpen, onClose }: { isOpen: boolean, onClose: () 
         return diff < 60000 ? 'online' : 'offline'; // 1 min threshold
     };
 
+    const getFrameStyle = (cosmetics: any) => {
+        const frameId = cosmetics?.equipped?.frame;
+        return COSMETIC_ITEMS.frames.find(f => f.id === frameId)?.style;
+    };
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -120,7 +126,7 @@ export const SocialPanel = ({ isOpen, onClose }: { isOpen: boolean, onClose: () 
                         {/* CHAT VIEW */}
                         {tab === 'chat' && (
                             <>
-                                {/* Sub-header for DMs navigation (if implemented specifically) or just rely on 'Friends' tab to switch */}
+                                {/* Sub-header for DMs navigation */}
                                 {activeChat !== 'global' && (
                                     <div className="p-2 bg-purple-900/20 border-b border-purple-500/20 flex justify-between items-center">
                                         <span className="text-xs text-purple-200">Privado con {activeFriend?.username}</span>
@@ -134,7 +140,14 @@ export const SocialPanel = ({ isOpen, onClose }: { isOpen: boolean, onClose: () 
                                             <div className="flex items-end gap-2 max-w-[85%]">
                                                 {msg.sender?.username !== user?.username && (
                                                     <div className="flex flex-col items-center">
-                                                        <img src={msg.sender?.avatar_url} alt="av" className="w-6 h-6 rounded-full bg-gray-800" />
+                                                        <img
+                                                            src={msg.sender?.avatar_url}
+                                                            alt="av"
+                                                            className={cn(
+                                                                "w-6 h-6 rounded-full bg-gray-800",
+                                                                getFrameStyle(msg.sender?.cosmetics)
+                                                            )}
+                                                        />
                                                     </div>
                                                 )}
                                                 <div className={cn(
@@ -194,7 +207,13 @@ export const SocialPanel = ({ isOpen, onClose }: { isOpen: boolean, onClose: () 
                                     {friends.filter(f => f.status === 'pending').map(request => (
                                         <div key={request.friendship_id} className="bg-yellow-900/20 border border-yellow-500/30 p-3 rounded flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                <img src={request.avatar_url} className="w-8 h-8 rounded-full" />
+                                                <img
+                                                    src={request.avatar_url}
+                                                    className={cn(
+                                                        "w-8 h-8 rounded-full",
+                                                        getFrameStyle(request.cosmetics)
+                                                    )}
+                                                />
                                                 <div>
                                                     <p className="font-bold text-sm text-white">{request.username}</p>
                                                     <p className="text-xs text-yellow-500">{request.is_sender ? 'Esperando respuesta...' : 'Te ha enviado solicitud'}</p>
@@ -215,7 +234,13 @@ export const SocialPanel = ({ isOpen, onClose }: { isOpen: boolean, onClose: () 
                                         <div key={friend.friendship_id} className="bg-white/5 p-3 rounded flex items-center justify-between hover:bg-white/10 group transition-colors cursor-pointer" onClick={() => { setActiveChat(friend.id); setTab('chat'); }}>
                                             <div className="flex items-center gap-3">
                                                 <div className="relative">
-                                                    <img src={friend.avatar_url} className="w-10 h-10 rounded-full" />
+                                                    <img
+                                                        src={friend.avatar_url}
+                                                        className={cn(
+                                                            "w-10 h-10 rounded-full",
+                                                            getFrameStyle(friend.cosmetics)
+                                                        )}
+                                                    />
                                                     <Circle size={10} className={cn("absolute bottom-0 right-0 fill-current", getOnlineStatus(friend.last_seen) === 'online' ? "text-green-500" : "text-gray-500")} />
                                                 </div>
                                                 <div>

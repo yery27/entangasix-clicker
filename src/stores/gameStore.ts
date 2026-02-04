@@ -29,6 +29,17 @@ interface GameState {
     saveTimeout: any; // Using any to avoid NodeJS/Window timeout conflicts
 
     debouncedSave: () => void;
+
+    // Cosmetics
+    cosmetics: {
+        owned: string[];
+        equipped: {
+            frame?: string;
+            click_effect?: string;
+        };
+    };
+    buyCosmetic: (id: string, cost: number) => boolean;
+    equipCosmetic: (type: 'frame' | 'click_effect', id: string) => void;
 }
 
 export const useGameStore = create<GameState>()(
@@ -43,6 +54,7 @@ export const useGameStore = create<GameState>()(
             soundEnabled: true,
             isLoaded: false,
             saveTimeout: null,
+            cosmetics: { owned: [], equipped: {} },
 
             toggleSound: () => {
                 const { soundEnabled } = get();
@@ -126,6 +138,41 @@ export const useGameStore = create<GameState>()(
                 return false;
             },
 
+
+
+            buyCosmetic: (id, cost) => {
+                const { coins, cosmetics, saveGame } = get();
+                if (coins >= cost && !cosmetics.owned.includes(id)) {
+                    set(state => ({
+                        coins: state.coins - cost,
+                        cosmetics: {
+                            ...state.cosmetics,
+                            owned: [...state.cosmetics.owned, id]
+                        }
+                    }));
+                    toast.success('¡Artículo comprado!');
+                    saveGame();
+                    return true;
+                }
+                return false;
+            },
+
+            equipCosmetic: (type, id) => {
+                const { cosmetics, saveGame } = get();
+                if (cosmetics.owned.includes(id) || id === '') { // Allow uneqip with empty string
+                    set(state => ({
+                        cosmetics: {
+                            ...state.cosmetics,
+                            equipped: {
+                                ...state.cosmetics.equipped,
+                                [type]: id === '' ? undefined : id
+                            }
+                        }
+                    }));
+                    saveGame();
+                }
+            },
+
             tick: () => {
                 const { autoClickPower, lastSaveTime, saveGame } = get();
                 const now = Date.now();
@@ -154,7 +201,7 @@ export const useGameStore = create<GameState>()(
 
                     const { data: profile, error } = await supabase
                         .from('profiles')
-                        .select('coins, lifetime_coins, click_power, auto_click_power, inventory')
+                        .select('coins, lifetime_coins, click_power, auto_click_power, inventory, cosmetics')
                         .eq('id', user.id)
                         .single();
 
@@ -185,7 +232,10 @@ export const useGameStore = create<GameState>()(
                                 autoClickPower: Number(profile.auto_click_power),
                                 inventory: typeof profile.inventory === 'string'
                                     ? JSON.parse(profile.inventory)
-                                    : profile.inventory || {}
+                                    : profile.inventory || {},
+                                cosmetics: typeof profile.cosmetics === 'string'
+                                    ? JSON.parse(profile.cosmetics)
+                                    : profile.cosmetics || { owned: [], equipped: {} }
                             });
                         }
                     }
@@ -226,6 +276,7 @@ export const useGameStore = create<GameState>()(
                         click_power: state.clickPower,
                         auto_click_power: state.autoClickPower,
                         inventory: state.inventory,
+                        cosmetics: state.cosmetics,
                         last_seen: new Date().toISOString(),
                     };
 
@@ -275,7 +326,10 @@ export const useGameStore = create<GameState>()(
                                     autoClickPower: Number(cloudProfile.auto_click_power),
                                     inventory: typeof cloudProfile.inventory === 'string'
                                         ? JSON.parse(cloudProfile.inventory)
-                                        : cloudProfile.inventory || {}
+                                        : cloudProfile.inventory || {},
+                                    cosmetics: typeof cloudProfile.cosmetics === 'string'
+                                        ? JSON.parse(cloudProfile.cosmetics)
+                                        : cloudProfile.cosmetics || { owned: [], equipped: {} }
                                 });
                             }
                         }

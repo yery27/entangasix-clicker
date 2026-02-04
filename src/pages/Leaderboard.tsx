@@ -3,6 +3,7 @@ import { Trophy, RefreshCw } from 'lucide-react';
 import { cn, formatCurrency } from '../lib/utils';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
+import { COSMETIC_ITEMS } from '../lib/constants';
 
 
 
@@ -19,7 +20,7 @@ export default function Leaderboard() {
         try {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('id, username, avatar_url, lifetime_coins, last_seen')
+                .select('id, username, avatar_url, lifetime_coins, last_seen, cosmetics')
                 .order('lifetime_coins', { ascending: false })
                 .limit(50);
 
@@ -31,7 +32,8 @@ export default function Leaderboard() {
                     username: profile.username || 'Anon',
                     avatar: profile.avatar_url,
                     score: profile.lifetime_coins,
-                    lastSeen: profile.last_seen
+                    lastSeen: profile.last_seen,
+                    cosmetics: typeof profile.cosmetics === 'string' ? JSON.parse(profile.cosmetics) : profile.cosmetics
                 }));
                 setLeaders(formattedLeaders);
             }
@@ -117,7 +119,10 @@ export default function Leaderboard() {
                                     <img
                                         src={player.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${player.username}`}
                                         alt={player.username}
-                                        className="w-full h-full object-cover"
+                                        className={cn(
+                                            "w-full h-full object-cover",
+                                            COSMETIC_ITEMS.frames.find(f => f.id === player.cosmetics?.equipped?.frame)?.style
+                                        )}
                                     />
                                 </div>
                                 <div className="flex flex-col min-w-0">

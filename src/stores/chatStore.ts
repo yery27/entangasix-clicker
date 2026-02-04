@@ -12,6 +12,7 @@ export interface ChatMessage {
     sender?: {
         username: string;
         avatar_url: string;
+        cosmetics?: any; // Avoiding deep recursion type, just need the JSON
     };
 }
 
@@ -23,6 +24,11 @@ export interface Friend {
     status: 'pending' | 'accepted';
     is_sender: boolean; // True if WE sent the request
     last_seen?: string;
+    cosmetics?: {
+        equipped: {
+            frame?: string;
+        };
+    };
 }
 
 interface ChatState {
@@ -68,7 +74,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             .from('messages')
             .select(`
                 *,
-                sender:sender_id(username, avatar_url)
+                sender:sender_id(username, avatar_url, cosmetics)
             `)
             .order('created_at', { ascending: false })
             .limit(50);
@@ -89,7 +95,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
 
         if (data) {
-            set({ messages: data.reverse() as any });
+            // Parse cosmetics if they come as string (Supabase sometimes returns stringified JSON)
+            const parsedData = data.map((msg: any) => ({
+                ...msg,
+                sender: msg.sender ? {
+                    ...msg.sender,
+                    cosmetics: typeof msg.sender.cosmetics === 'string'
+                        ? JSON.parse(msg.sender.cosmetics)
+                        : msg.sender.cosmetics
+                } : undefined
+            }));
+            set({ messages: parsedData.reverse() });
         }
     },
 
@@ -129,8 +145,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 status,
                 user_id,
                 friend_id,
-                user:user_id(username, avatar_url, last_seen),
-                friend:friend_id(username, avatar_url, last_seen)
+                user:user_id(username, avatar_url, last_seen, cosmetics),
+                friend:friend_id(username, avatar_url, last_seen, cosmetics)
             `)
             .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
 
@@ -151,6 +167,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 username: otherProfile?.username || 'Unknown',
                 avatar_url: otherProfile?.avatar_url,
                 last_seen: otherProfile?.last_seen,
+                cosmetics: typeof otherProfile?.cosmetics === 'string'
+                    ? JSON.parse(otherProfile.cosmetics)
+                    : otherProfile?.cosmetics,
                 status: row.status,
                 is_sender: isMeUser // If I am user, I sent it
             };
