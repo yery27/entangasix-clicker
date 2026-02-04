@@ -6,7 +6,7 @@ import { Blackjack } from '../components/casino/Blackjack';
 import { Mines } from '../components/casino/Mines';
 import { Crash } from '../components/casino/Crash';
 import { Plinko } from '../components/casino/Plinko';
-import { DinoRun } from '../components/casino/DinoRun';
+
 import { cn, formatCurrency } from '../lib/utils';
 import { useGameStore } from '../stores/gameStore';
 import { ArrowLeft, Play } from 'lucide-react';
@@ -23,7 +23,7 @@ export default function Casino() {
         { id: 'mines', label: 'Mines', color: 'from-yellow-400 to-orange-500', icon: '💣', desc: 'Evita las minas', comingSoon: false },
         { id: 'crash', label: 'Crash', color: 'from-pink-500 to-rose-500', icon: '🚀', desc: 'Retírate antes del boom', comingSoon: false },
         { id: 'plinko', label: 'Plinko', color: 'from-cyan-400 to-blue-500', icon: '🎱', desc: 'Donde caiga la bola', comingSoon: false },
-        { id: 'dino', label: 'Dino Run', color: 'from-green-500 to-teal-600', icon: '🦖', desc: 'Corre y esquiva meteoritos', comingSoon: false },
+        { id: 'plinko', label: 'Plinko', color: 'from-cyan-400 to-blue-500', icon: '🎱', desc: 'Donde caiga la bola', comingSoon: false },
     ];
 
     const handleBack = () => setActiveGame(null);
@@ -128,7 +128,7 @@ export default function Casino() {
                             {activeGame === 'mines' && <Mines />}
                             {activeGame === 'crash' && <Crash />}
                             {activeGame === 'plinko' && <Plinko />}
-                            {activeGame === 'dino' && <DinoRun />}
+
                         </motion.div>
                     )}
                 </AnimatePresence>

@@ -25,15 +25,15 @@ export const SHOP_ITEMS = {
 
 export const COSMETIC_ITEMS = {
     frames: [
-        { id: 'frame_gold', name: 'Marco Dorado', cost: 1000000, description: 'Un borde de oro macizo.', style: 'border-4 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.6)]' },
-        { id: 'frame_neon', name: 'Marco Neón', cost: 5000000, description: 'Brilla con la intensidad de mil soles.', style: 'border-4 border-purple-500 shadow-[0_0_20px_purple] animate-pulse' },
-        { id: 'frame_diamond', name: 'Marco Diamante', cost: 25000000, description: 'Puro lujo helado.', style: 'border-4 border-cyan-400 shadow-[0_0_25px_cyan]' },
-        { id: 'frame_admin', name: 'Marco Glitch', cost: 100000000, description: '¿Eres el dueño del juego?', style: 'border-4 border-red-500 animate-pulse shadow-[0_0_30px_red]' },
+        { id: 'frame_gold', name: 'Marco Dorado', cost: 10000000, description: 'Un borde de oro macizo.', style: 'border-4 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.6)]' },
+        { id: 'frame_neon', name: 'Marco Neón', cost: 50000000, description: 'Brilla con la intensidad de mil soles.', style: 'border-4 border-purple-500 shadow-[0_0_20px_purple] animate-pulse' },
+        { id: 'frame_diamond', name: 'Marco Diamante', cost: 250000000, description: 'Puro lujo helado.', style: 'border-4 border-cyan-400 shadow-[0_0_25px_cyan]' },
+        { id: 'frame_admin', name: 'Marco Glitch', cost: 1000000000, description: '¿Eres el dueño del juego?', style: 'border-4 border-red-500 animate-pulse shadow-[0_0_30px_red]' },
     ],
     effects: [
-        { id: 'effect_fire', name: 'Fuego', cost: 500000, description: 'Tus clicks queman.', color: '#ef4444' }, // Red
-        { id: 'effect_lightning', name: 'Rayo', cost: 2000000, description: 'Poder eléctrico.', color: '#3b82f6' }, // Blue
-        { id: 'effect_money', name: 'Lluvia de Dinero', cost: 10000000, description: '¡Billetes por todas partes!', color: '#22c55e' }, // Green
-        { id: 'effect_rainbow', name: 'Arcoíris', cost: 50000000, description: 'RGB Gaming.', color: 'rainbow' },
+        { id: 'effect_fire', name: 'Fuego', cost: 5000000, description: 'Tus clicks queman.', color: '#ef4444' }, // Red
+        { id: 'effect_lightning', name: 'Rayo', cost: 20000000, description: 'Poder eléctrico.', color: '#3b82f6' }, // Blue
+        { id: 'effect_money', name: 'Lluvia de Dinero', cost: 100000000, description: '¡Billetes por todas partes!', color: '#22c55e' }, // Green
+        { id: 'effect_rainbow', name: 'Arcoíris', cost: 500000000, description: 'RGB Gaming.', color: 'rainbow' },
     ]
 };
