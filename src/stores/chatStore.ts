@@ -231,7 +231,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     initializeRealtime: () => {
         // Subscribe to messages
-        const messageChannel = supabase
+        supabase
             .channel('chat_realtime')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
                 const { activeChat } = get();
@@ -251,7 +251,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             .subscribe();
 
         // Subscribe to friends
-        const friendChannel = supabase
+        supabase
             .channel('friends_realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'friends' }, () => {
                 get().fetchFriends();
