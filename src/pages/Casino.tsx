@@ -23,7 +23,7 @@ export default function Casino() {
         { id: 'mines', label: 'Mines', color: 'from-yellow-400 to-orange-500', icon: '💣', desc: 'Evita las minas', comingSoon: false },
         { id: 'crash', label: 'Crash', color: 'from-pink-500 to-rose-500', icon: '🚀', desc: 'Retírate antes del boom', comingSoon: false },
         { id: 'plinko', label: 'Plinko', color: 'from-cyan-400 to-blue-500', icon: '🎱', desc: 'Donde caiga la bola', comingSoon: false },
-        { id: 'plinko', label: 'Plinko', color: 'from-cyan-400 to-blue-500', icon: '🎱', desc: 'Donde caiga la bola', comingSoon: false },
+
     ];
 
     const handleBack = () => setActiveGame(null);

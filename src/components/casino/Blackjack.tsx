@@ -4,7 +4,7 @@ import { useGameStore } from '../../stores/gameStore';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn, formatCurrency } from '../../lib/utils';
-import { User, Shield, RotateCcw } from 'lucide-react';
+import { User, Shield } from 'lucide-react';
 import { playSound, setMuted } from '../../lib/soundManager';
 
 /* --- TYPES --- */
@@ -94,22 +94,7 @@ const Card = ({ card, hidden = false, index, isDealer = false }: { card: CardDat
     );
 };
 
-const Chip = ({ value, onClick, selected }: { value: number, onClick: () => void, selected?: boolean }) => (
-    <button
-        onClick={onClick}
-        className={cn(
-            "w-10 h-10 md:w-14 md:h-14 flex-shrink-0 rounded-full border-2 md:border-4 border-dashed flex items-center justify-center font-bold text-[10px] md:text-sm shadow-lg transition-all active:scale-95",
-            selected ? "scale-110 ring-2 ring-white z-10" : "hover:scale-105",
-            value === 10 ? "bg-white border-gray-300 text-black" :
-                value === 50 ? "bg-red-600 border-red-800 text-white" :
-                    value === 100 ? "bg-blue-600 border-blue-800 text-white" :
-                        value === 500 ? "bg-green-600 border-green-800 text-white" :
-                            "bg-black border-yellow-500 text-yellow-500" // 1000+
-        )}
-    >
-        {value >= 1000000 ? (value / 1000000) + 'M' : value >= 1000 ? (value / 1000) + 'k' : value}
-    </button>
-);
+
 
 export function Blackjack() {
     const { coins, removeCoins, addCoins, soundEnabled } = useGameStore();
@@ -127,8 +112,6 @@ export function Blackjack() {
 
     // Betting State
     const [bet, setBet] = useState(0);
-    const [selectedChip, setSelectedChip] = useState(100);
-    const [lastBet, setLastBet] = useState(0); // For Repeat Bet
     const [message, setMessage] = useState("¡Hagan sus apuestas!");
     const [endRoundWin, setEndRoundWin] = useState<number | null>(null);
 
@@ -152,31 +135,13 @@ export function Blackjack() {
         return score;
     };
 
-    const addBet = () => {
-        if (coins < bet + selectedChip) return toast.error("No tienes suficientes fichas");
-        playSound.click();
-        setMessage(''); // Clear optional message on interaction
-        setBet(prev => prev + selectedChip);
-    };
 
-    const clearBet = () => {
-        playSound.click();
-        setBet(0);
-    };
-
-    const repeatBet = () => {
-        if (lastBet === 0) return;
-        if (coins < lastBet) return toast.error("Saldo insuficiente para repetir");
-        playSound.click();
-        setBet(lastBet);
-    };
 
     const deal = async () => {
         if (bet < 10) return toast.error("Apuesta mínima: 10");
         if (coins < bet) return toast.error("Saldo insuficiente");
 
         playSound.click();
-        setLastBet(bet);
         setEndRoundWin(null);
         removeCoins(bet);
         const newDeck = createDeck();
@@ -425,36 +390,22 @@ export function Blackjack() {
 
                 {gameState === 'betting' ? (
                     <>
-                        <div className="flex bg-black/50 p-1 rounded-xl border border-white/10 overflow-x-auto max-w-full scrollbar-hide w-full justify-center">
-                            <div className="flex gap-2">
-                                {[1000, 10000, 50000, 100000, 500000, 1000000].map(val => (
-                                    <Chip
-                                        key={val}
-                                        value={val}
-                                        onClick={() => { playSound.click(); setSelectedChip(val); }}
-                                        selected={selectedChip === val}
-                                    />
-                                ))}
+                        <div className="bg-black/40 border border-white/10 rounded-xl p-2 flex gap-2 w-full max-w-xl mx-auto">
+                            <div className="relative flex-1">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-yellow-500 font-bold text-xl">$</span>
+                                <input
+                                    type="number"
+                                    value={bet}
+                                    onChange={(e) => setBet(Math.max(0, parseInt(e.target.value) || 0))}
+                                    className="w-full bg-black/40 border border-white/5 rounded-lg py-4 pl-10 pr-4 text-white font-mono focus:outline-none focus:border-yellow-500/50 transition-colors text-xl font-bold"
+                                    placeholder="0"
+                                />
                             </div>
-                        </div>
-
-                        <div className="flex items-center gap-4 mt-2">
-                            <div className="bg-black px-6 py-3 rounded-xl border border-white/20 min-w-[120px] text-center">
-                                <span className="text-gray-400 text-xs uppercase block text-center mb-1">Apuesta</span>
-                                <span className="text-2xl font-mono text-yellow-400">{formatCurrency(bet)}</span>
-                            </div>
-
-                            <button onClick={repeatBet} disabled={lastBet === 0} className="w-12 h-12 rounded-full bg-purple-900/50 border border-purple-500 hover:bg-purple-900 flex items-center justify-center text-purple-200 disabled:opacity-30" title="Repetir Apuesta Anterior">
-                                <RotateCcw size={20} />
-                            </button>
-
-                            <button onClick={clearBet} className="text-red-400 hover:text-red-300 font-bold text-sm uppercase px-4">Borrar</button>
-
                             <button
-                                onClick={addBet}
-                                className="w-16 h-16 rounded-full bg-yellow-500 hover:bg-yellow-400 flex items-center justify-center text-black shadow-[0_0_20px_rgba(234,179,8,0.5)] active:scale-95 transition-all"
+                                onClick={() => setBet(coins)}
+                                className="px-6 py-2 bg-yellow-600/20 text-yellow-400 font-black rounded-lg hover:bg-yellow-600/30 border border-yellow-600/50 transition-colors uppercase tracking-wider"
                             >
-                                <span className="text-2xl font-black">+</span>
+                                MAX
                             </button>
                         </div>
 

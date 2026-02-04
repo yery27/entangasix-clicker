@@ -108,10 +108,24 @@ export function Mines() {
             <div className="w-full md:w-80 bg-[#1a1d26] p-6 rounded-3xl border border-white/10 flex flex-col gap-6 shadow-xl relative z-10">
                 <div>
                     <label className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-2 block">Apuesta</label>
-                    <div className="bg-black/40 border border-white/10 rounded-xl p-4 flex justify-between items-center">
-                        <button onClick={() => { playSound.click(); setBet(Math.max(10, bet - 100)); }} disabled={gameState === 'playing'} className="w-8 h-8 rounded bg-white/5 hover:bg-white/10 text-white font-bold disabled:opacity-30">-</button>
-                        <span className="text-xl font-mono font-bold text-yellow-400">{formatCurrency(bet)}</span>
-                        <button onClick={() => { playSound.click(); setBet(coins >= bet + 100 ? bet + 100 : bet); }} disabled={gameState === 'playing'} className="w-8 h-8 rounded bg-white/5 hover:bg-white/10 text-white font-bold disabled:opacity-30">+</button>
+                    <div className="bg-black/40 border border-white/10 rounded-xl p-2 flex gap-2">
+                        <div className="relative flex-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-yellow-500 font-bold">$</span>
+                            <input
+                                type="number"
+                                value={bet}
+                                onChange={(e) => setBet(Math.max(0, parseInt(e.target.value) || 0))}
+                                disabled={gameState === 'playing'}
+                                className="w-full bg-black/40 border border-white/5 rounded-lg py-2 pl-6 pr-2 text-white font-mono focus:outline-none focus:border-yellow-500/50 transition-colors"
+                            />
+                        </div>
+                        <button
+                            onClick={() => setBet(coins)}
+                            disabled={gameState === 'playing'}
+                            className="px-3 py-2 bg-yellow-600/20 text-yellow-400 text-xs font-bold rounded-lg hover:bg-yellow-600/30 border border-yellow-600/50 transition-colors disabled:opacity-50"
+                        >
+                            MAX
+                        </button>
                     </div>
                 </div>
 

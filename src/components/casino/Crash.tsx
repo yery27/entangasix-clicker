@@ -116,10 +116,24 @@ export function Crash() {
 
                 <div className="mt-4">
                     <label className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-2 block">Tu Apuesta</label>
-                    <div className="bg-black/40 border border-white/10 rounded-xl p-4 flex justify-between items-center">
-                        <button onClick={() => { playSound.click(); setBet(Math.max(10, bet - 100)); }} className="w-8 h-8 rounded bg-white/5 hover:bg-white/10 text-white font-bold">-</button>
-                        <span className="text-xl font-mono font-bold text-cyan-400">{formatCurrency(bet)}</span>
-                        <button onClick={() => { playSound.click(); setBet(coins >= bet + 100 ? bet + 100 : bet); }} className="w-8 h-8 rounded bg-white/5 hover:bg-white/10 text-white font-bold">+</button>
+                    <div className="bg-black/40 border border-white/10 rounded-xl p-2 flex gap-2">
+                        <div className="relative flex-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400 font-bold">$</span>
+                            <input
+                                type="number"
+                                value={bet}
+                                onChange={(e) => setBet(Math.max(0, parseInt(e.target.value) || 0))}
+                                disabled={gameStatus === 'RUNNING'}
+                                className="w-full bg-black/40 border border-white/5 rounded-lg py-2 pl-6 pr-2 text-white font-mono focus:outline-none focus:border-cyan-500/50 transition-colors"
+                            />
+                        </div>
+                        <button
+                            onClick={() => setBet(coins)}
+                            disabled={gameStatus === 'RUNNING'}
+                            className="px-3 py-2 bg-cyan-600/20 text-cyan-400 text-xs font-bold rounded-lg hover:bg-cyan-600/30 border border-cyan-600/50 transition-colors disabled:opacity-50"
+                        >
+                            MAX
+                        </button>
                     </div>
                 </div>
 
