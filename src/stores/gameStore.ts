@@ -25,6 +25,9 @@ interface GameState {
     saveGame: () => Promise<void>;
     initializeSync: () => Promise<(() => void) | undefined>;
     isLoaded: boolean;
+    saveTimeout: any; // Using any to avoid NodeJS/Window timeout conflicts
+
+    debouncedSave: () => void;
 }
 
 export const useGameStore = create<GameState>()(
@@ -38,31 +41,48 @@ export const useGameStore = create<GameState>()(
             lastSaveTime: Date.now(),
             soundEnabled: true,
             isLoaded: false,
+            saveTimeout: null,
 
             toggleSound: () => {
                 const { soundEnabled } = get();
                 set({ soundEnabled: !soundEnabled });
             },
 
+            // Helper for smart saving
+            debouncedSave: () => {
+                const { saveTimeout, saveGame } = get();
+                if (saveTimeout) clearTimeout(saveTimeout);
+
+                const newTimeout = setTimeout(() => {
+                    saveGame();
+                }, 2000); // Save 2 seconds after last action
+
+                set({ saveTimeout: newTimeout });
+            },
+
             click: () => {
-                const { clickPower } = get();
+                const { clickPower, debouncedSave } = get();
                 set(state => ({
                     coins: state.coins + clickPower,
                     lifetimeCoins: state.lifetimeCoins + clickPower
                 }));
+                debouncedSave();
             },
 
             addCoins: (amount) => {
+                const { debouncedSave } = get();
                 set(state => ({
                     coins: state.coins + amount,
                     lifetimeCoins: state.lifetimeCoins + Math.max(0, amount)
                 }));
+                debouncedSave();
             },
 
             removeCoins: (amount) => {
-                const { coins } = get();
+                const { coins, debouncedSave } = get();
                 if (coins >= amount) {
                     set(state => ({ coins: state.coins - amount }));
+                    debouncedSave();
                     return true;
                 }
                 return false;
