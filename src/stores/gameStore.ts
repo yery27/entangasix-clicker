@@ -212,12 +212,15 @@ export const useGameStore = create<GameState>()(
 
                     const state = get();
 
-                    // Optimistic UI for saving (optional, maybe too spammy? let's keep it mostly silent unless it errors, 
-                    // OR specifically for this debug session, let's show SUCCESS to confirm it works)
-                    // toast.loading('Guardando...', { id: 'save-toast' });
+                    // Retrieve username from metadata to ensure we can CREATE the profile if it's missing
+                    // (This fixes the "null value in column username" error)
+                    const username = user.user_metadata?.username || user.email?.split('@')[0] || 'Unknown User';
+                    const avatar_url = user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
 
                     const updates = {
                         id: user.id,
+                        username: username, // Critical fix: Provide username for new rows
+                        avatar_url: avatar_url, // Also good to ensure avatar is there
                         coins: state.coins,
                         lifetime_coins: state.lifetimeCoins,
                         click_power: state.clickPower,
@@ -234,8 +237,7 @@ export const useGameStore = create<GameState>()(
                         toast.error('❌ Error al guardar: ' + error.message);
                         throw error;
                     } else {
-                        // Uncomment this if you want visible confirmation every aut-save (spammy but useful now)
-                        // toast.success('✅ Progreso guardado'); 
+                        // Uncomment if needed: toast.success('✅ Progreso guardado'); 
                     }
                 } catch (e) {
                     console.error('Failed to save game:', e);
