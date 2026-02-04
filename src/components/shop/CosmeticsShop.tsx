@@ -3,7 +3,7 @@ import { useGameStore } from '../../stores/gameStore';
 import { COSMETIC_ITEMS } from '../../lib/constants';
 import { formatCurrency, cn } from '../../lib/utils';
 import { toast } from 'sonner';
-import { Sparkles, Crown, Check, Lock, Palette } from 'lucide-react';
+import { Sparkles, Crown, Check, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const CosmeticsShop = () => {
@@ -11,7 +11,7 @@ export const CosmeticsShop = () => {
     const [activeTab, setActiveTab] = useState<'frames' | 'effects'>('frames');
 
     const handleBuy = (item: any) => {
-        const success = buyCosmetic(item.id, item.cost);
+        buyCosmetic(item.id, item.cost);
         // Toast is handled in store, but we could add more FX here
     };
 
