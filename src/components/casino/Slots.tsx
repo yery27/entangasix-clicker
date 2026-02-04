@@ -177,7 +177,7 @@ export function Slots() {
             </h1>
 
             <div className="bg-gradient-to-br from-purple-900 to-black p-8 rounded-[40px] border-4 border-purple-500 shadow-[0_0_50px_rgba(168,85,247,0.4)] relative">
-                <div className="flex gap-2 md:gap-4 bg-black p-4 rounded-3xl border border-white/10 mb-8 shadow-inner overflow-hidden relative">
+                <div className="flex justify-center gap-2 md:gap-4 bg-black p-4 rounded-3xl border border-white/10 mb-8 shadow-inner overflow-hidden relative">
                     <div className="absolute top-1/2 left-0 right-0 h-1 bg-red-500/50 z-20 pointer-events-none shadow-[0_0_10px_red]"></div>
 
                     {[0, 1, 2].map(i => (
