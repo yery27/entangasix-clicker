@@ -23,6 +23,8 @@ interface GameState {
     // Cloud Sync
     loadGame: () => Promise<void>;
     saveGame: () => Promise<void>;
+    initializeSync: () => Promise<(() => void) | undefined>;
+    isLoaded: boolean;
 }
 
 export const useGameStore = create<GameState>()(
@@ -35,6 +37,7 @@ export const useGameStore = create<GameState>()(
             inventory: {},
             lastSaveTime: Date.now(),
             soundEnabled: true,
+            isLoaded: false,
 
             toggleSound: () => {
                 const { soundEnabled } = get();
@@ -126,7 +129,14 @@ export const useGameStore = create<GameState>()(
             loadGame: async () => {
                 try {
                     const { data: { user } } = await supabase.auth.getUser();
-                    if (!user) return;
+                    if (!user) {
+                        // Even if no user, we consider 'load' complete for anonymous usage (or just abort)
+                        // But for safety, let's say isLoaded = true only if we attempted a fetch or sure we are offline?
+                        // Actually, if !user, we probably shouldn't set isLoaded=true for cloud purposes, 
+                        // BUT if the user proceeds to play, we might want to allow saving locally? 
+                        // The persist middleware handles local storage. This is cloud load.
+                        return;
+                    }
 
                     const { data: profile, error } = await supabase
                         .from('profiles')
@@ -140,6 +150,7 @@ export const useGameStore = create<GameState>()(
                     }
 
                     if (profile) {
+                        // Logic: Always trust cloud on initial load if it exists
                         set({
                             coins: Number(profile.coins),
                             lifetimeCoins: Number(profile.lifetime_coins),
@@ -151,12 +162,22 @@ export const useGameStore = create<GameState>()(
                         });
                         console.log('Game loaded from cloud');
                     }
+
+                    // Critical: Allow saving only after we've attempted to load
+                    set({ isLoaded: true });
+
                 } catch (e) {
                     console.error('Failed to load game:', e);
                 }
             },
 
             saveGame: async () => {
+                // Safety Guard: Do not save if we haven't loaded yet
+                if (!get().isLoaded) {
+                    console.warn('Prevented save before load to avoid overwriting cloud data.');
+                    return;
+                }
+
                 try {
                     const { data: { user } } = await supabase.auth.getUser();
                     if (!user) return;
@@ -178,10 +199,52 @@ export const useGameStore = create<GameState>()(
                         .upsert(updates);
 
                     if (error) throw error;
-                    // console.log('Game saved to cloud');
                 } catch (e) {
                     console.error('Failed to save game:', e);
                 }
+            },
+
+            initializeSync: async () => {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+
+                console.log('Initializing Real-time Sync for user:', user.id);
+
+                const channel = supabase
+                    .channel(`profile:${user.id}`)
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: 'UPDATE',
+                            schema: 'public',
+                            table: 'profiles',
+                            filter: `id=eq.${user.id}`
+                        },
+                        (payload) => {
+                            const cloudProfile = payload.new;
+                            const localState = get();
+
+                            // SYNC LOGIC: Highest Lifetime Coins Wins
+                            // If cloud has more progress than local, overwrite local.
+                            if (cloudProfile.lifetime_coins > localState.lifetimeCoins) {
+                                console.log('Syncing from cloud (remote progress detected)...');
+                                set({
+                                    coins: Number(cloudProfile.coins),
+                                    lifetimeCoins: Number(cloudProfile.lifetime_coins),
+                                    clickPower: Number(cloudProfile.click_power),
+                                    autoClickPower: Number(cloudProfile.auto_click_power),
+                                    inventory: typeof cloudProfile.inventory === 'string'
+                                        ? JSON.parse(cloudProfile.inventory)
+                                        : cloudProfile.inventory || {}
+                                });
+                            }
+                        }
+                    )
+                    .subscribe();
+
+                return () => {
+                    supabase.removeChannel(channel);
+                };
             }
         }),
         {

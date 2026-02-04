@@ -4,12 +4,16 @@ import { cn, formatCurrency } from '../lib/utils';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
 
+import { useGameStore } from '../stores/gameStore';
+
 export default function Leaderboard() {
     const { user } = useAuthStore();
+    const { saveGame } = useGameStore();
     const [leaders, setLeaders] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
 
     const fetchLeaders = async () => {
+        if (user) await saveGame(); // Force save to update cloud before fetching
         setLoading(true);
         try {
             const { data, error } = await supabase

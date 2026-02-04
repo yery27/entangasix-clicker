@@ -27,9 +27,26 @@ export default function App() {
   }, [checkSession]);
 
   useEffect(() => {
+    let active = true;
+    let cleanup: (() => void) | undefined;
+
     if (isAuthenticated) {
       loadGame();
+      const init = async () => {
+        const fn = await useGameStore.getState().initializeSync();
+        if (active) {
+          cleanup = fn;
+        } else if (fn) {
+          fn();
+        }
+      };
+      init();
     }
+
+    return () => {
+      active = false;
+      if (cleanup) cleanup();
+    };
   }, [isAuthenticated, loadGame]);
 
   // Game Loop
