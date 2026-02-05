@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../stores/gameStore';
 import { formatCurrency, cn } from '../lib/utils';
@@ -9,6 +9,10 @@ import { useAntiCheat } from '../hooks/useAntiCheat';
 export default function Home() {
     const { coins, lifetimeCoins, clickPower, autoClickPower, click } = useGameStore();
     const [clicks, setClicks] = useState<{ id: number, x: number, y: number, val: number }[]>([]);
+
+    // Hand Animation State
+    const [isHandActive, setIsHandActive] = useState(false);
+    const handTimeoutRef = useRef<number | null>(null);
 
     // Anti-Cheat
     const { validateClick } = useAntiCheat();
@@ -28,21 +32,31 @@ export default function Home() {
     const handleClick = (e: React.MouseEvent) => {
         // Anti-Cheat Check
         if (!validateClick()) return;
+
+        // Trigger Hand Animation
+        setIsHandActive(true);
+        if (handTimeoutRef.current) clearTimeout(handTimeoutRef.current);
+        handTimeoutRef.current = setTimeout(() => setIsHandActive(false), 100) as unknown as number;
+
         // Get click position relative to the button center roughly, or exact
-        const rect = (e.target as HTMLElement).getBoundingClientRect();
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
         click();
 
-        // Add floating text
+        // Add floating text (Performance Limit: Max 15 particles)
         const id = Date.now();
-        setClicks(prev => [...prev, { id, x, y, val: clickPower }]);
+        setClicks(prev => {
+            const newClicks = [...prev, { id, x, y, val: clickPower }];
+            if (newClicks.length > 15) return newClicks.slice(newClicks.length - 15);
+            return newClicks;
+        });
 
         // Cleanup old clicks
         setTimeout(() => {
             setClicks(prev => prev.filter(c => c.id !== id));
-        }, 1000);
+        }, 800);
     };
 
     return (
@@ -99,15 +113,25 @@ export default function Home() {
                     <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={handleClick}
+                        onPointerDown={handleClick} // Better responsiveness on mobile than onClick
                         className={cn(
-                            "w-64 h-64 rounded-full bg-gradient-to-b from-cyber-gray to-black border-4 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex items-center justify-center relative overflow-hidden group",
+                            "w-64 h-64 rounded-full bg-gradient-to-b from-cyber-gray to-black border-4 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex items-center justify-center relative overflow-hidden group touch-manipulation",
                             currentRank.border
                         )}
+                        style={{ WebkitTapHighlightColor: 'transparent' }}
                     >
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.05),transparent)] pointer-events-none" />
+
+                        {/* Inner Circle with Hand Animation */}
                         <div className="w-56 h-56 rounded-full bg-cyber-dark flex items-center justify-center shadow-inner relative z-10 group-active:shadow-[inset_0_0_30px_rgba(0,0,0,0.8)] transition-shadow">
-                            <div className="text-6xl select-none pointer-events-none">👆</div>
+                            {/* Hand Emoji / Graphic */}
+                            <motion.div
+                                className="text-giant select-none pointer-events-none origin-bottom-right absolute bottom-10 right-14"
+                                animate={isHandActive ? { rotate: -15, scale: 0.9, y: 10 } : { rotate: 0, scale: 1, y: 0 }}
+                                transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                            >
+                                <span className="text-8xl filter drop-shadow-lg">🖐️</span>
+                            </motion.div>
                         </div>
 
                         {/* Ring Animation */}
@@ -115,7 +139,7 @@ export default function Home() {
                     </motion.button>
 
                     {/* Floating Numbers */}
-                    <AnimatePresence>
+                    <AnimatePresence mode="popLayout">
                         {clicks.map((click) => {
                             const equippedEffectId = useGameStore.getState().cosmetics.equipped.click_effect;
                             const effect = COSMETIC_ITEMS.effects.find(e => e.id === equippedEffectId);
@@ -132,7 +156,7 @@ export default function Home() {
                                         rotate: Math.random() * 20 - 10
                                     }}
                                     exit={{ opacity: 0 }}
-                                    transition={{ duration: 0.8, ease: "easeOut" }}
+                                    transition={{ duration: 0.5, ease: "easeOut" }} // Faster duration for better mobile perf
                                     className={cn(
                                         "absolute top-0 left-0 text-4xl font-black pointer-events-none select-none z-50 flex items-center gap-2",
                                         !effect && "text-white"

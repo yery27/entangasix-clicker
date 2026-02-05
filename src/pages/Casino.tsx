@@ -7,6 +7,7 @@ import { Mines } from '../components/casino/Mines';
 import { Crash } from '../components/casino/Crash';
 import { Plinko } from '../components/casino/Plinko';
 import { Scratch75 } from '../components/casino/Scratch75';
+import { LiveRoulette } from '../components/casino/LiveRoulette';
 
 import { cn, formatCurrency } from '../lib/utils';
 import { useGameStore } from '../stores/gameStore';
@@ -19,6 +20,7 @@ export default function Casino() {
     const games = [
         { id: 'slots', label: 'Cyber Slots', color: 'from-purple-600 to-blue-600', icon: '🎰', desc: 'Gira y gana el Jackpot' },
         { id: 'roulette', label: 'Neon Roulette', color: 'from-green-600 to-emerald-600', icon: '🎡', desc: 'Clásica ruleta europea' },
+        { id: 'live_roulette', label: 'Ruleta en VIVO', color: 'from-red-600 to-pink-600', icon: '🔴', desc: 'Juega con otros en tiempo real' },
         { id: 'blackjack', label: 'VIP Blackjack', color: 'from-red-600 to-orange-600', icon: '🃏', desc: 'Vence al croupier' },
         { id: 'scratch75', label: '7 y Media', color: 'from-yellow-400 to-green-600', icon: '🎟️', desc: 'Rasca y gana hasta 100x' },
 
@@ -126,6 +128,7 @@ export default function Casino() {
                         >
                             {activeGame === 'slots' && <Slots />}
                             {activeGame === 'roulette' && <Roulette />}
+                            {activeGame === 'live_roulette' && <LiveRoulette />}
                             {activeGame === 'blackjack' && <Blackjack />}
                             {activeGame === 'scratch75' && <Scratch75 />}
                             {activeGame === 'mines' && <Mines />}

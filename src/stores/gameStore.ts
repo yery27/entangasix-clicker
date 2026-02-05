@@ -12,6 +12,7 @@ interface GameState {
     inventory: Record<string, number>; // itemId -> quantity
     lastSaveTime: number;
     soundEnabled: boolean;
+    globalMultiplier: number; // For events
 
     // Actions
     click: () => void;
@@ -20,6 +21,7 @@ interface GameState {
     buyItem: (type: 'click' | 'idle', itemId: string) => boolean;
     tick: () => void; // Called every second
     toggleSound: () => void;
+    setGlobalMultiplier: (multiplier: number) => void;
 
     // Cloud Sync
     loadGame: () => Promise<void>;
@@ -55,6 +57,9 @@ export const useGameStore = create<GameState>()(
             isLoaded: false,
             saveTimeout: null,
             cosmetics: { owned: [], equipped: {} },
+            globalMultiplier: 1,
+
+            setGlobalMultiplier: (multiplier) => set({ globalMultiplier: multiplier }),
 
             toggleSound: () => {
                 const { soundEnabled } = get();
@@ -74,10 +79,13 @@ export const useGameStore = create<GameState>()(
             },
 
             click: () => {
-                const { clickPower, debouncedSave } = get();
+                const { clickPower, debouncedSave, globalMultiplier } = get();
+                // Apply global multiplier
+                const amount = clickPower * globalMultiplier;
+
                 set(state => ({
-                    coins: state.coins + clickPower,
-                    lifetimeCoins: state.lifetimeCoins + clickPower
+                    coins: state.coins + amount,
+                    lifetimeCoins: state.lifetimeCoins + amount
                 }));
                 debouncedSave();
             },
@@ -174,13 +182,14 @@ export const useGameStore = create<GameState>()(
             },
 
             tick: () => {
-                const { autoClickPower, lastSaveTime, saveGame } = get();
+                const { autoClickPower, lastSaveTime, saveGame, globalMultiplier } = get();
                 const now = Date.now();
 
                 if (autoClickPower > 0) {
+                    const amount = autoClickPower * globalMultiplier;
                     set(state => ({
-                        coins: state.coins + autoClickPower,
-                        lifetimeCoins: state.lifetimeCoins + autoClickPower,
+                        coins: state.coins + amount,
+                        lifetimeCoins: state.lifetimeCoins + amount,
                         lastSaveTime: now
                     }));
                 } else {

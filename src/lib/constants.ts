@@ -29,6 +29,13 @@ export const COSMETIC_ITEMS = {
         { id: 'frame_neon', name: 'Marco Neón', cost: 50000000, description: 'Brilla con la intensidad de mil soles.', style: 'border-4 border-purple-500 shadow-[0_0_20px_purple] animate-pulse' },
         { id: 'frame_diamond', name: 'Marco Diamante', cost: 250000000, description: 'Puro lujo helado.', style: 'border-4 border-cyan-400 shadow-[0_0_25px_cyan]' },
         { id: 'frame_admin', name: 'Marco Glitch', cost: 1000000000, description: '¿Eres el dueño del juego?', style: 'border-4 border-red-500 animate-pulse shadow-[0_0_30px_red]' },
+        {
+            id: 'title_entangado',
+            name: 'El Más Entangado',
+            cost: 1000000000000,
+            description: 'Solo para el rey del servidor. Muestra tu título exclusivo.',
+            style: 'border-4 border-emerald-500 shadow-[0_0_50px_emerald] animate-bounce'
+        },
     ],
     effects: [
         { id: 'effect_fire', name: 'Fuego', cost: 5000000, description: 'Tus clicks queman.', color: '#ef4444' }, // Red

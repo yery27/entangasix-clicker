@@ -11,6 +11,7 @@ import Leaderboard from './pages/Leaderboard';
 import Profile from './pages/Profile';
 import { useAuthStore } from './stores/authStore';
 import { useGameStore } from './stores/gameStore';
+import GlobalEvents from './components/GlobalEvents';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -69,6 +70,7 @@ export default function App() {
 
         <Route path="/" element={
           <ProtectedRoute>
+            <GlobalEvents />
             <AppShell />
           </ProtectedRoute>
         }>

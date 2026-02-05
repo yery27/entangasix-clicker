@@ -21,7 +21,7 @@ export default function Profile() {
         try {
             if (!username.trim()) throw new Error("El nombre de usuario no puede estar vacío");
 
-            const updates: any = {};
+            const updates: { username?: string; password?: string } = {};
             if (username !== user?.username) updates.username = username;
 
             if (password) {
@@ -131,6 +131,14 @@ export default function Profile() {
                                     />
                                 ) : (
                                     <div className="text-3xl font-black text-white tracking-tight">{user?.username}</div>
+                                )}
+                                {/* Exclusive Title Display */}
+                                {useGameStore.getState().cosmetics.owned.includes('title_entangado') && (
+                                    <div className="mt-2 text-center">
+                                        <span className="inline-block bg-gradient-to-r from-emerald-400 via-green-500 to-emerald-400 text-black font-black text-sm px-4 py-1 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.8)] animate-pulse">
+                                            👑 EL MÁS ENTANGADO 👑
+                                        </span>
+                                    </div>
                                 )}
                             </div>
 
