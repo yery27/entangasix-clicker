@@ -181,6 +181,105 @@ export function Scratch75() {
         return Array(count).fill(null).map(() => deck.pop()!);
     };
 
+    // --- LOGIC HELPER: GENERATE GAME RESULT ---
+    // Returns the complete state for a single game round
+    const generateGameResult = (currentBet: number) => {
+        const TARGET_WIN_RATE = 0.35;
+        const isWin = Math.random() < TARGET_WIN_RATE;
+
+        // Helper to calc strict score
+        const getScore = (hand: CardData[]) => hand.reduce((acc, c) => acc + c.value, 0);
+
+        let attempt = 0;
+        // We retry until we hit the desired outcome (Win or Loss)
+        // Safety break at 500 attempts to prevent infinite loop
+        while (attempt < 500) {
+            let deck = createDeck();
+
+            // 1. Banker (Max 7.0)
+            const bCards = generateSafeHand(deck, 7, 2);
+
+            // 2. Player (Max 7.5)
+            const pCards = generateSafeHand(deck, 7.5, 3);
+
+            // 3. Bonus
+            const bonCard = deck.pop()!;
+
+            // Calc Scores
+            const bankScore = getScore(bCards);
+            const playerScore = getScore(pCards);
+
+            // Calc Potential Main Prize (Visual only, strictly)
+            const prizeRand = Math.random();
+            let prizeMult = 1;
+            if (prizeRand > 0.99) prizeMult = 100;
+            else if (prizeRand > 0.95) prizeMult = 20;
+            else if (prizeRand > 0.85) prizeMult = 5;
+            else if (prizeRand > 0.60) prizeMult = 2;
+            const mainPrize = Math.floor(currentBet * prizeMult);
+
+            // Calc Bonus Prize
+            const bonusRand = Math.random();
+            let bonusMult = 1;
+            if (bonusRand > 0.95) bonusMult = 10;
+            else if (bonusRand > 0.8) bonusMult = 5;
+            else if (bonusRand > 0.5) bonusMult = 2;
+            else if (bonusRand > 0.3) bonusMult = 1;
+            const bonusPrize = Math.floor(currentBet * bonusMult);
+
+            // Evaluate Actual Win
+            let win = 0;
+            const reasons: string[] = [];
+
+            // Main Win Condition
+            if (playerScore <= 7.5) {
+                if (playerScore === 7.5) {
+                    win += mainPrize * 2;
+                    reasons.push("¡7.5 EXACTOS!");
+                } else if (playerScore > bankScore) {
+                    win += mainPrize;
+                    reasons.push("Ganas a la Banca");
+                }
+            }
+
+            // Bonus Win Condition
+            const matchesBonus = pCards.some(c => c.rank === bonCard.rank);
+            if (matchesBonus) {
+                win += bonusPrize;
+                reasons.push("Bonus");
+            }
+
+            // Check against Target
+            const actualIsWin = win > 0;
+
+            if (actualIsWin === isWin) {
+                // Found a matching game state!
+                return {
+                    bankerCards: bCards,
+                    playerCards: pCards,
+                    bonusData: { card: bonCard, prize: bonusPrize },
+                    potentialPrize: mainPrize,
+                    winAmount: win,
+                    reasons,
+                    isWin: actualIsWin
+                };
+            }
+
+            attempt++;
+        }
+
+        // Fallback (should rarely happen) - just return whatever generated last
+        return {
+            bankerCards: [] as CardData[],
+            playerCards: [] as CardData[],
+            bonusData: { card: { suit: 'Oros', rank: '1', value: 1, img: '' }, prize: 0 },
+            potentialPrize: 0,
+            winAmount: 0,
+            reasons: [],
+            isWin: false
+        };
+    };
+
     const startGame = () => {
         if (coins < bet) {
             toast.error("Saldo insuficiente");
@@ -190,46 +289,14 @@ export function Scratch75() {
         removeCoins(bet);
         playSound.click();
 
-        let deck = createDeck();
+        // Generate Result
+        const result = generateGameResult(bet);
 
-        // 1. Generate Banker (Max 7.0) - 2 Cards
-        const bCards = generateSafeHand(deck, 7, 2);
-
-        // 2. Player Cards (3 cards, Max 7.5)
-        const pCards = generateSafeHand(deck, 7.5, 3);
-
-        // 3. Bonus Card + Prize
-        const bonCard = deck.pop()!;
-
-        // Bonus Prize calculation
-        // Usually small multiplier, occasionally big
-        const bonusRand = Math.random();
-        let bonusMult = 1; // Minimum investment
-        if (bonusRand > 0.95) bonusMult = 10;
-        else if (bonusRand > 0.8) bonusMult = 5;
-        else if (bonusRand > 0.5) bonusMult = 2;
-        else if (bonusRand > 0.3) bonusMult = 1;
-
-        const bonusPrizeAmt = Math.floor(bet * bonusMult);
-
-        setBonusData({
-            card: bonCard,
-            prize: bonusPrizeAmt
-        });
-
-        // 4. Main Prize Calculation (Hidden Amount)
-        const rand = Math.random();
-        let mult = 1;
-        if (rand > 0.99) mult = 100;
-        else if (rand > 0.95) mult = 20;
-        else if (rand > 0.85) mult = 5;
-        else if (rand > 0.60) mult = 2;
-
-        const prizeVal = Math.floor(bet * mult);
-
-        setBankerCards(bCards);
-        setPlayerCards(pCards);
-        setPotentialPrize(prizeVal);
+        // Update State
+        setBankerCards(result.bankerCards);
+        setPlayerCards(result.playerCards);
+        setBonusData(result.bonusData);
+        setPotentialPrize(result.potentialPrize);
 
         setRevealed({
             banker: [false, false],
