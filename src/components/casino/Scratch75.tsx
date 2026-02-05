@@ -192,11 +192,11 @@ export function Scratch75() {
 
         let deck = createDeck();
 
-        // 1. Generate Banker (Must be <= 7.5)
-        const bCards = generateBankerHand(deck);
+        // 1. Generate Banker (Max 7.0) - 2 Cards
+        const bCards = generateSafeHand(deck, 7, 2);
 
-        // 2. Player Cards (3 cards)
-        const pCards = [deck.pop()!, deck.pop()!, deck.pop()!];
+        // 2. Player Cards (3 cards, Max 7.5)
+        const pCards = generateSafeHand(deck, 7.5, 3);
 
         // 3. Bonus Card + Prize
         const bonCard = deck.pop()!;
@@ -305,15 +305,12 @@ export function Scratch75() {
         // 7.5 Exact wins double
 
         if (playerScore <= 7.5) {
-            // Since Banker never busts by design (<=7.5)
-            if (playerScore >= bankScore) {
-                if (playerScore === 7.5) {
-                    totalWin += potentialPrize * 2;
-                    reasons.push("¡7.5 EXACTOS! (x2)");
-                } else {
-                    totalWin += potentialPrize;
-                    reasons.push("Ganas a la Banca");
-                }
+            if (playerScore === 7.5) {
+                totalWin += potentialPrize * 2;
+                reasons.push("¡7.5 EXACTOS! (x2)");
+            } else if (playerScore > bankScore) {
+                totalWin += potentialPrize;
+                reasons.push("Ganas a la Banca");
             }
         }
 
