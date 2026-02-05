@@ -4,7 +4,7 @@ import { useGameStore } from '../../stores/gameStore';
 import { useAuthStore } from '../../stores/authStore';
 import { toast } from 'sonner';
 import { cn, formatCurrency } from '../../lib/utils';
-import { Trash2, RotateCcw, Users, MessageSquare, Send } from 'lucide-react';
+import { Trash2, RotateCcw, Users, MessageSquare, Send, Trophy } from 'lucide-react';
 import { playSound, setMuted } from '../../lib/soundManager';
 import { supabase } from '../../lib/supabase';
 
@@ -37,7 +37,7 @@ function mulberry32(a: number) {
 }
 
 export function LiveRoulette() {
-    const { coins, removeCoins, addCoins, soundEnabled } = useGameStore();
+    const { coins, removeCoins, addCoins, soundEnabled, saveGame } = useGameStore();
     const { user } = useAuthStore();
 
     // Sync mute
@@ -53,12 +53,13 @@ export function LiveRoulette() {
     const [onlineUsers, setOnlineUsers] = useState<RouletteUser[]>([]);
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [newMessage, setNewMessage] = useState('');
+    const [timeOffset, setTimeOffset] = useState(0);
 
     // Betting
     const [chipValue, setChipValue] = useState(100);
     const [bets, setBets] = useState<Record<string, number>>({});
     const [previousBets, setPreviousBets] = useState<Record<string, number> | null>(null);
-    const [lastWin, setLastWin] = useState<{ number: number, amount: number } | null>(null);
+    const [lastWin, setLastWin] = useState<{ number: number, amount: number, bet: number } | null>(null);
 
     const controls = useAnimation();
     const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -69,6 +70,36 @@ export function LiveRoulette() {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
     }, [chatMessages]);
+
+    // --- SYNC TIME WITH SERVER ---
+    useEffect(() => {
+        const syncTime = async () => {
+            try {
+                // Fetch current page headers to get server time (or fallback to Date.now if fetch fails)
+                const start = Date.now();
+                const response = await fetch('/', { method: 'HEAD', cache: 'no-store' });
+                const end = Date.now();
+                const latency = (end - start) / 2;
+
+                const dateHeader = response.headers.get('date');
+                if (dateHeader) {
+                    const serverTime = new Date(dateHeader).getTime() + latency;
+                    const localTime = Date.now();
+                    const offset = serverTime - localTime;
+                    // console.log('Time Sync Offset:', offset, 'Latency:', latency);
+                    setTimeOffset(offset);
+                }
+            } catch (err) {
+                console.error("Failed to sync time:", err);
+            }
+        };
+        syncTime();
+        // Resync every 2 minutes to handle drift
+        const interval = setInterval(syncTime, 120000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const getSyncedTime = () => Date.now() + timeOffset;
 
     // --- SUPABASE REALTIME ---
     useEffect(() => {
@@ -134,7 +165,7 @@ export function LiveRoulette() {
     // --- GAME LOOP ---
     useEffect(() => {
         const interval = setInterval(() => {
-            const now = Date.now();
+            const now = getSyncedTime();
             const cycleTime = now % ROUND_DURATION;
             const remaining = ROUND_DURATION - cycleTime;
 
@@ -164,7 +195,7 @@ export function LiveRoulette() {
 
         return () => clearInterval(interval);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [gameState]);
+    }, [gameState]); // Removed 'bets' from dependency to avoid loop reset, using refs if needed but state 'bets' isn't used in loop directly except if we needed to lock it.
 
     const triggerSpin = async (now: number) => {
         if (hasSprunRef.current) return;
@@ -280,18 +311,28 @@ export function LiveRoulette() {
             }
         });
 
+        // Current round bet total (needed for display)
+        const roundTotalBet = Object.values(bets).reduce((a, b) => a + b, 0);
+
         setBets({});
 
         if (totalWin > 0) {
             addCoins(totalWin);
-            setLastWin({ number: outcome, amount: totalWin });
             playSound.win();
             toast.success(`¡GANASTE ${formatCurrency(totalWin)}!`, {
                 description: `Salió ${outcome}`,
                 duration: 5000
             });
+            // Force save on win
+            saveGame();
+            setLastWin({ number: outcome, amount: totalWin, bet: roundTotalBet });
         } else {
-            if (totalBet > 0) playSound.loss();
+            if (roundTotalBet > 0) {
+                playSound.loss();
+                setLastWin({ number: outcome, amount: 0, bet: roundTotalBet });
+            } else {
+                setLastWin({ number: outcome, amount: 0, bet: 0 });
+            }
         }
     };
 
@@ -404,7 +445,7 @@ export function LiveRoulette() {
                             </button>
                         </div>
 
-                        <div className="bg-black/60 px-4 py-2 rounded-lg border border-white/10 font-mono text-yellow-400 min-w-[120px] text-center">
+                        <div className="bg-black/60 px-4 py-2 rounded-lg border border-white/10 font-mono flex items-center gap-2 text-yellow-400 min-w-[120px] text-center">
                             APUESTA: <span className="text-white">{formatCurrency(totalBet)}</span>
                         </div>
                     </div>
@@ -470,6 +511,33 @@ export function LiveRoulette() {
 
             {/* --- RIGHT SIDEBAR: CHAT & USERS --- */}
             <div className="w-full xl:w-80 flex flex-col gap-4 h-[600px] flex-shrink-0">
+                {/* Last Win Display - Robust */}
+                {lastWin && (
+                    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className={cn("border p-4 rounded-xl flex items-center justify-between", lastWin.amount > 0 ? "bg-green-500/10 border-green-500/50" : "bg-red-500/10 border-red-500/50")}>
+                        <div className="flex items-center gap-2">
+                            <Trophy className={cn("text-yellow-400", lastWin.amount === 0 && "text-gray-500")} size={24} />
+                            <div>
+                                <div className={cn("text-xs uppercase font-bold", lastWin.amount > 0 ? "text-green-200" : "text-red-200")}>
+                                    {lastWin.amount > 0 ? '¡VICTORIA!' : 'RESULTADO'}
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className={cn("text-xl font-mono font-black", lastWin.amount > 0 ? "text-white" : "text-gray-400")}>
+                                        {formatCurrency(lastWin.amount)}
+                                    </span>
+                                    {(lastWin.bet > 0) && (
+                                        <span className="text-[10px] text-gray-400">
+                                            APOSTADO: {formatCurrency(lastWin.bet)}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className={cn("text-2xl font-black", RED_NUMBERS.includes(lastWin.number) ? "text-red-500" : lastWin.number === 0 ? "text-green-500" : "text-white")}>
+                            #{lastWin.number}
+                        </div>
+                    </motion.div>
+                )}
+
                 {/* User List */}
                 <div className="bg-black/60 rounded-xl border border-white/10 p-4 max-h-48 overflow-y-auto backdrop-blur-md">
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
@@ -524,7 +592,7 @@ export function LiveRoulette() {
             </div>
 
             <AnimatePresence>
-                {lastWin && (
+                {lastWin && lastWin.amount > 0 && (
                     <motion.div
                         initial={{ opacity: 0, scale: 0.5, y: 100 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0 }}
                         className="fixed bottom-1/2 left-1/2 -translate-x-1/2 translate-y-1/2 bg-green-500 text-black px-12 py-6 rounded-3xl font-black text-4xl shadow-[0_0_50px_rgba(34,197,94,0.8)] border-4 border-white z-[100] text-center pointer-events-none"
