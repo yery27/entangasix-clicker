@@ -6,6 +6,7 @@ import { Blackjack } from '../components/casino/Blackjack';
 import { Mines } from '../components/casino/Mines';
 import { Crash } from '../components/casino/Crash';
 import { Plinko } from '../components/casino/Plinko';
+import { Scratch75 } from '../components/casino/Scratch75';
 
 import { cn, formatCurrency } from '../lib/utils';
 import { useGameStore } from '../stores/gameStore';
@@ -19,6 +20,7 @@ export default function Casino() {
         { id: 'slots', label: 'Cyber Slots', color: 'from-purple-600 to-blue-600', icon: '🎰', desc: 'Gira y gana el Jackpot' },
         { id: 'roulette', label: 'Neon Roulette', color: 'from-green-600 to-emerald-600', icon: '🎡', desc: 'Clásica ruleta europea' },
         { id: 'blackjack', label: 'VIP Blackjack', color: 'from-red-600 to-orange-600', icon: '🃏', desc: 'Vence al croupier' },
+        { id: 'scratch75', label: '7 y Media', color: 'from-yellow-400 to-green-600', icon: '🎟️', desc: 'Rasca y gana hasta 100x' },
 
         { id: 'mines', label: 'Mines', color: 'from-yellow-400 to-orange-500', icon: '💣', desc: 'Evita las minas', comingSoon: false },
         { id: 'crash', label: 'Crash', color: 'from-pink-500 to-rose-500', icon: '🚀', desc: 'Retírate antes del boom', comingSoon: false },
@@ -125,6 +127,7 @@ export default function Casino() {
                             {activeGame === 'slots' && <Slots />}
                             {activeGame === 'roulette' && <Roulette />}
                             {activeGame === 'blackjack' && <Blackjack />}
+                            {activeGame === 'scratch75' && <Scratch75 />}
                             {activeGame === 'mines' && <Mines />}
                             {activeGame === 'crash' && <Crash />}
                             {activeGame === 'plinko' && <Plinko />}
