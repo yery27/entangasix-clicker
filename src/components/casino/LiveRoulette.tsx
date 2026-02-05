@@ -111,15 +111,14 @@ export function LiveRoulette() {
                 const users = Object.values(newState).flat() as unknown as RouletteUser[];
                 setOnlineUsers(users);
             })
-            .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-                const newUsers = newPresences as RouletteUser[];
+            .on('presence', { event: 'join' }, ({ newPresences }) => {
+                const newUsers = newPresences as unknown as RouletteUser[];
                 newUsers.forEach(u => {
                     if (u.user_id !== user?.id) toast.info(`${u.username} se unió`);
                 });
             })
-            .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-                const leftUsers = leftPresences as RouletteUser[];
-                // Optional: toast(`${leftUsers[0].username} salió`);
+            .on('presence', { event: 'leave' }, () => {
+                // Handle leave silently or add toast if needed
             })
             .on('broadcast', { event: 'chat' }, ({ payload }) => {
                 setChatMessages(prev => [...prev.slice(-49), payload as ChatMessage]);
