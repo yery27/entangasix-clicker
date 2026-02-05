@@ -58,6 +58,12 @@ export function LiveRoulette() {
     // Betting
     const [chipValue, setChipValue] = useState(100);
     const [bets, setBets] = useState<Record<string, number>>({});
+    const betsRef = useRef<Record<string, number>>({});
+
+    useEffect(() => {
+        betsRef.current = bets;
+    }, [bets]);
+
     const [previousBets, setPreviousBets] = useState<Record<string, number> | null>(null);
     const [lastWin, setLastWin] = useState<{ number: number, amount: number, bet: number } | null>(null);
 
@@ -290,7 +296,8 @@ export function LiveRoulette() {
 
     const checkWin = (outcome: number) => {
         setHistory(prev => [outcome, ...prev].slice(0, 10));
-        setPreviousBets(bets);
+        const currentBets = betsRef.current;
+        setPreviousBets(currentBets);
 
         let totalWin = 0;
         const isRed = RED_NUMBERS.includes(outcome);
@@ -303,7 +310,7 @@ export function LiveRoulette() {
         const getDozen = (n: number) => n === 0 ? 0 : Math.ceil(n / 12);
         const getColumn = (n: number) => n === 0 ? 0 : (n % 3 === 0 ? 3 : n % 3);
 
-        Object.entries(bets).forEach(([betId, amount]) => {
+        Object.entries(currentBets).forEach(([betId, amount]) => {
             let winMultiplier = 0;
             if (betId === `n-${outcome}`) winMultiplier = 36;
             else if (betId === 'red' && isRed) winMultiplier = 2;
@@ -321,9 +328,10 @@ export function LiveRoulette() {
         });
 
         // Current round bet total (needed for display)
-        const roundTotalBet = Object.values(bets).reduce((a, b) => a + b, 0);
+        const roundTotalBet = Object.values(currentBets).reduce((a, b) => a + b, 0);
 
         setBets({});
+        betsRef.current = {}; // Clear ref immediately as well
 
         if (totalWin > 0) {
             addCoins(totalWin);
