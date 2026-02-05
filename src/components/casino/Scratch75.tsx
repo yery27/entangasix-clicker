@@ -8,20 +8,26 @@ import { playSound } from '../../lib/soundManager';
 
 /* --- TYPES & CONSTANTS --- */
 type Suit = 'Oros' | 'Copas' | 'Espadas' | 'Bastos';
-type Rank = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '10' | '11' | '12';
+// Authentic Ranks: 1/2 (0.5), 1 - 7.
+type Rank = '1/2' | '1' | '2' | '3' | '4' | '5' | '6' | '7';
 
 interface CardData {
     suit: Suit;
     rank: Rank;
     value: number;
-    img: string;
+    img: string; // Placeholder for image path
+}
+
+interface BonusData {
+    card: CardData;
+    prize: number;
 }
 
 const SUITS: Suit[] = ['Oros', 'Copas', 'Espadas', 'Bastos'];
-const RANKS: Rank[] = ['1', '2', '3', '4', '5', '6', '7', '10', '11', '12'];
+const RANKS: Rank[] = ['1/2', '1', '2', '3', '4', '5', '6', '7'];
 
 const getValue = (rank: Rank) => {
-    if (['10', '11', '12'].includes(rank)) return 0.5;
+    if (rank === '1/2') return 0.5;
     return parseInt(rank);
 };
 
@@ -33,7 +39,7 @@ const createDeck = (): CardData[] => {
                 suit,
                 rank,
                 value: getValue(rank),
-                img: `/cards/${suit}_${rank}.png` // Placeholder logic for visuals
+                img: `/cards/${suit}_${rank}.png`
             });
         });
     });
@@ -56,11 +62,11 @@ const ScratchArea = ({
 }) => {
     return (
         <div
-            className="relative overflow-hidden rounded-xl cursor-pointer select-none group"
+            className="relative overflow-hidden rounded-xl cursor-pointer select-none group border-2 border-[#d4af37]/30"
             onClick={!isRevealed ? onReveal : undefined}
         >
             {/* The Hidden Content */}
-            <div className={cn("w-full h-full bg-white flex items-center justify-center p-2", !isRevealed && "pointer-events-none")}>
+            <div className={cn("w-full h-full bg-white flex flex-col items-center justify-center p-2", !isRevealed && "pointer-events-none")}>
                 {children}
             </div>
 
@@ -71,14 +77,14 @@ const ScratchArea = ({
                         initial={{ opacity: 1 }}
                         exit={{ opacity: 0, scale: 1.5, filter: "blur(10px)" }}
                         transition={{ duration: 0.4 }}
-                        className="absolute inset-0 bg-cover bg-center flex flex-col items-center justify-center text-center p-2 shadow-inner border-2 border-[#d4af37]"
+                        className="absolute inset-0 bg-cover bg-center flex flex-col items-center justify-center text-center p-2 shadow-inner"
                         style={{
                             backgroundImage: 'url("https://www.transparenttextures.com/patterns/gold-scales.png")',
                             backgroundColor: '#FFD700'
                         }}
                     >
                         <div className="absolute inset-0 bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 opacity-90" />
-                        <span className="relative z-10 font-black text-yellow-900 uppercase drop-shadow-md text-sm md:text-base">
+                        <span className="relative z-10 font-black text-yellow-900 uppercase drop-shadow-md text-sm md:text-base tracking-widest">
                             {label || "RASCAR"}
                         </span>
                         <Eraser className="relative z-10 w-6 h-6 text-yellow-900/50 mt-1 opacity-0 group-hover:opacity-100 transition-opacity animate-bounce" />
@@ -89,18 +95,23 @@ const ScratchArea = ({
     );
 }
 
-const CardDisplay = ({ card }: { card: CardData }) => {
+const CardDisplay = ({ card, size = "normal" }: { card: CardData, size?: "normal" | "small" }) => {
     const symbol = { 'Oros': '🪙', 'Copas': '🏆', 'Espadas': '⚔️', 'Bastos': '🪵' }[card.suit];
 
+    // Style adjustments for the "1/2" text vs number
+    const isHalf = card.rank === '1/2';
+
     return (
-        <div className="flex flex-col items-center justify-center w-20 h-28 md:w-24 md:h-32 border-2 border-slate-200 rounded-lg bg-white shadow-sm relative overflow-hidden">
-            <div className="absolute top-1 left-1 text-xs font-bold">{card.rank}</div>
-            <div className="absolute top-1 right-1 text-xs">{symbol}</div>
-            <div className="text-4xl">{symbol}</div>
-            <div className="text-sm font-bold mt-2 text-center text-gray-800 leading-tight">
-                {card.rank === '10' ? 'Sota' : card.rank === '11' ? 'Caballo' : card.rank === '12' ? 'Rey' : card.value}
+        <div className={cn(
+            "flex flex-col items-center justify-center border-2 border-slate-200 rounded-lg bg-white shadow-sm relative overflow-hidden",
+            size === "normal" ? "w-20 h-28 md:w-24 md:h-32" : "w-16 h-20"
+        )}>
+            <div className="absolute top-1 left-1 text-[10px] font-bold">{card.rank}</div>
+            <div className="text-3xl filter drop-shadow-sm">{symbol}</div>
+            <div className={cn("font-black mt-1 text-center text-gray-800 leading-tight", isHalf ? "text-xl text-blue-600" : "text-2xl")}>
+                {card.rank}
             </div>
-            <div className="absolute bottom-1 right-1 text-xs font-bold rotate-180">{card.rank}</div>
+            <div className="absolute bottom-1 right-1 text-[10px] font-bold rotate-180">{card.rank}</div>
         </div>
     );
 };
@@ -117,10 +128,14 @@ export function Scratch75() {
     // Card Data
     const [bankerCards, setBankerCards] = useState<CardData[]>([]);
     const [playerCards, setPlayerCards] = useState<CardData[]>([]);
-    const [bonusCard, setBonusCard] = useState<CardData | null>(null);
+
+    // Bonus now contains card + prize
+    const [bonusData, setBonusData] = useState<BonusData | null>(null);
+
+    // Prize pool for main game
     const [potentialPrize, setPotentialPrize] = useState(0);
 
-    // Scratch State (all false initially)
+    // Scratch State
     const [revealed, setRevealed] = useState<{
         banker: boolean[];
         player: boolean[];
@@ -133,6 +148,39 @@ export function Scratch75() {
         prize: false
     });
 
+    // Helper: Generate safe banker hand
+    const generateBankerHand = (deck: CardData[]): CardData[] => {
+        let attempts = 0;
+        while (attempts < 100) {
+            // Draw 2 random cards from a temporary deck copy logically, but here we just pick random
+            // Since deck is shuffled passed in, we can take from top, but we need to ensure not busting
+            // Problem: If we modify deck here we might mess up player draw.
+            // Better: Draw 2, if bust, put back and shuffle, retry. 
+            // Simplified for scratch ticket simulation: Just Ensure Sum <= 7.5.
+
+            const c1 = deck[Math.floor(Math.random() * deck.length)];
+            const c2 = deck[Math.floor(Math.random() * deck.length)];
+
+            // Ensure unique cards? Yes, from same deck.
+            if (c1 === c2) continue; // Basic dup check if picking by index, here simple logic
+
+            const sum = c1.value + c2.value;
+            if (sum <= 7.5) {
+                // Remove these specific instances from deck
+                const idx1 = deck.indexOf(c1);
+                deck.splice(idx1, 1);
+                const idx2 = deck.indexOf(c2);
+                deck.splice(idx2, 1);
+                return [c1, c2];
+            }
+            attempts++;
+        }
+        // Fallback
+        const c1 = deck.pop()!;
+        const c2 = deck.pop()!;
+        return [c1, c2];
+    };
+
     const startGame = () => {
         if (coins < bet) {
             toast.error("Saldo insuficiente");
@@ -142,25 +190,45 @@ export function Scratch75() {
         removeCoins(bet);
         playSound.click();
 
-        const deck = createDeck();
+        let deck = createDeck();
 
-        // Deal logic
-        const bCards = [deck.pop()!, deck.pop()!];
+        // 1. Generate Banker (Must be <= 7.5)
+        const bCards = generateBankerHand(deck);
+
+        // 2. Player Cards (3 cards)
         const pCards = [deck.pop()!, deck.pop()!, deck.pop()!];
+
+        // 3. Bonus Card + Prize
         const bonCard = deck.pop()!;
 
-        // Generate Prize Multiplier (mostly 1x, sometimes 10x, rarely 100x)
+        // Bonus Prize calculation
+        // Usually small multiplier, occasionally big
+        const bonusRand = Math.random();
+        let bonusMult = 0.5; // Refund half bet
+        if (bonusRand > 0.95) bonusMult = 10;
+        else if (bonusRand > 0.8) bonusMult = 5;
+        else if (bonusRand > 0.5) bonusMult = 2;
+        else if (bonusRand > 0.3) bonusMult = 1;
+
+        const bonusPrizeAmt = Math.floor(bet * bonusMult);
+
+        setBonusData({
+            card: bonCard,
+            prize: bonusPrizeAmt
+        });
+
+        // 4. Main Prize Calculation (Hidden Amount)
         const rand = Math.random();
-        let mult = 1.5; // Minimo para recuperar algo si ganas
-        if (rand > 0.98) mult = 100;
-        else if (rand > 0.90) mult = 10;
+        let mult = 1;
+        if (rand > 0.99) mult = 100;
+        else if (rand > 0.95) mult = 20;
+        else if (rand > 0.85) mult = 5;
         else if (rand > 0.60) mult = 2;
 
         const prizeVal = Math.floor(bet * mult);
 
         setBankerCards(bCards);
         setPlayerCards(pCards);
-        setBonusCard(bonCard);
         setPotentialPrize(prizeVal);
 
         setRevealed({
@@ -201,7 +269,6 @@ export function Scratch75() {
     };
 
     const checkWinCondition = (currentRevealed: typeof revealed) => {
-        // Check if EVERYTHING is revealed
         const allBanker = currentRevealed.banker.every(r => r);
         const allPlayer = currentRevealed.player.every(r => r);
         const bonusRev = currentRevealed.bonus;
@@ -214,23 +281,18 @@ export function Scratch75() {
 
     const revealAll = () => {
         if (!isPlaying || isFinished) return;
-
         setRevealed({
             banker: [true, true],
             player: [true, true, true],
             bonus: true,
             prize: true
         });
-
-        // Need to wait for state update in a real effect, but here we can just call eval directly 
-        // since we know the state *will* be full. 
-        // But better to let the effect/check logic handle it? 
-        // We'll force eval immediately with the full state.
         setTimeout(() => evaluateGame(), 500);
     };
 
+    // --- EVALUATION LOGIC ---
     const evaluateGame = () => {
-        if (isFinished) return; // Prevent double eval
+        if (isFinished) return;
 
         const bankScore = bankerCards.reduce((acc, c) => acc + c.value, 0);
         const playerScore = playerCards.reduce((acc, c) => acc + c.value, 0);
@@ -238,39 +300,35 @@ export function Scratch75() {
         let totalWin = 0;
         let reasons: string[] = [];
 
-        // 1. Regular Win (Beat Dealer without busting)
-        // Dealer busts if > 7.5? Rules say: "Si tus cartas > banca sin alcanzar 7.5".
-        // What if banker busts? Rules usually imply banker plays to win. 
-        // Official rules: "Si suma player > suma banca SIN ALCANZAR 7.5, ganas premio."
-        // "Si dicha suma alcanza 7.5, ganas DOBLE."
+        // 1. MAIN GAME
+        // Player wins if > Bankers AND <= 7.5
+        // 7.5 Exact wins double
 
-        const playerBust = playerScore > 7.5;
-        // Does banker bust matter? The rule only compares sums. "Supera a la banca".
-        // Implicitly if I have 5 and Banker has 6, I lose.
-        // If Banker has 7.5 and I have 7.5? "Alcanza 7.5 -> ganas doble". Usually plays in favor of player on exact 7.5.
-
-        if (!playerBust) {
-            const bankerBust = bankScore > 7.5; // Not strictly in rules text provided but standard.
-
-            if (playerScore === 7.5) {
-                totalWin += potentialPrize * 2;
-                reasons.push("¡7.5 EXACTOS! (x2)");
-            } else if (bankerBust || playerScore > bankScore) {
-                totalWin += potentialPrize;
-                reasons.push("Ganas a la Banca");
+        if (playerScore <= 7.5) {
+            // Since Banker never busts by design (<=7.5)
+            if (playerScore > bankScore) {
+                if (playerScore === 7.5) {
+                    totalWin += potentialPrize * 2;
+                    reasons.push("¡7.5 EXACTOS! (x2)");
+                } else {
+                    totalWin += potentialPrize;
+                    reasons.push("Ganas a la Banca");
+                }
+            } else if (playerScore === 7.5 && bankScore !== 7.5) {
+                // If banker has < 7.5 and player has 7.5, player wins double.
+                // Covered by logic above.
+                // What if Banker has 7.5 too? Tie? Usually lose or push. We'll say lose to Banker tie for simplicity unless tie rule specified.
             }
         }
 
-        // 2. Bonus Win
-        // "Si Carta Bonus es igual a alguna de Tus Cartas"
-        // Usually matches Rank/Number, not Suit.
-        const matchesBonus = playerCards.some(c => c.rank === bonusCard?.rank);
-        if (matchesBonus) {
-            // Bonus prize logic? User simple said "Premio extra". 
-            // Default to 5x Bet for bonus.
-            const bonusPrize = bet * 5;
-            totalWin += bonusPrize;
-            reasons.push("¡BONUS! coincidencias");
+        // 2. BONUS GAME
+        // If Bonus Card Rank matches ANY Player Card Rank -> Win Bonus Prize
+        if (bonusData) {
+            const matchesBonus = playerCards.some(c => c.rank === bonusData.card.rank);
+            if (matchesBonus) {
+                totalWin += bonusData.prize;
+                reasons.push(`Bonus (+${formatCurrency(bonusData.prize)})`);
+            }
         }
 
         setIsFinished(true);
@@ -284,7 +342,6 @@ export function Scratch75() {
             });
         } else {
             playSound.loss();
-            // toast.error("Suerte la próxima vez...");
         }
     };
 
@@ -296,7 +353,7 @@ export function Scratch75() {
                 <div className="bg-black/80 backdrop-blur border border-green-500/30 p-8 rounded-3xl shadow-2xl w-full max-w-2xl mb-8 flex flex-col items-center gap-6">
                     <h2 className="text-3xl font-black text-green-400 italic">7 Y MEDIA</h2>
                     <p className="text-gray-400 text-center text-sm">
-                        ¡Rasca y gana hasta x100! Consigue 7.5 para doblar el premio.
+                        Versión Oficial: Cartas 1/2 - 7. Banca máx 7.5.
                     </p>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
@@ -330,7 +387,7 @@ export function Scratch75() {
                 <div className="bg-green-600 p-1 rounded-3xl shadow-2xl rotate-1 animate-in fade-in zoom-in duration-300">
                     <div className="bg-[#00a86b] border-4 border-yellow-400 border-dashed rounded-[20px] p-4 md:p-8 flex flex-col gap-6 relative max-w-3xl w-full shadow-inner">
 
-                        {/* Header Image / Title */}
+                        {/* HEADERS */}
                         <div className="flex justify-between items-center bg-white/10 rounded-xl p-2 mb-2">
                             <div className="text-yellow-300 font-black text-4xl drop-shadow-md tracking-tighter" style={{ textShadow: '2px 2px 0 #006644' }}>
                                 7 ½
@@ -343,12 +400,12 @@ export function Scratch75() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-6 gap-4">
 
-                            {/* LEFT COL: BANKER */}
-                            <div className="flex flex-col gap-2 bg-[#005c3a] p-3 rounded-xl border-2 border-yellow-400/50 shadow-lg">
+                            {/* LEFT: BANKER (2 cards) - Spans 3 cols */}
+                            <div className="col-span-6 md:col-span-3 flex flex-col gap-2 bg-[#005c3a] p-3 rounded-xl border-2 border-yellow-400/50 shadow-lg">
                                 <span className="text-yellow-300 font-bold uppercase text-xs tracking-widest text-center mb-1">BANCA</span>
-                                <div className="flex justify-center gap-2">
+                                <div className="flex justify-center gap-4">
                                     {bankerCards.map((card, i) => (
                                         <ScratchArea
                                             key={`bank-${i}`}
@@ -362,30 +419,32 @@ export function Scratch75() {
                                 </div>
                             </div>
 
-                            {/* RIGHT COL: BONUS */}
-                            <div className="flex flex-col gap-2 bg-[#005c3a] p-3 rounded-xl border-2 border-yellow-400/50 shadow-lg md:col-start-3">
+                            {/* RIGHT: BONUS - Spans 3 cols */}
+                            <div className="col-span-6 md:col-span-3 flex flex-col gap-2 bg-[#005c3a] p-3 rounded-xl border-2 border-yellow-400/50 shadow-lg">
                                 <span className="text-yellow-300 font-bold uppercase text-xs tracking-widest text-center mb-1">BONUS</span>
-                                <div className="flex justify-center">
-                                    {bonusCard && (
+                                <div className="flex justify-center h-full">
+                                    {bonusData && (
                                         <ScratchArea
                                             isRevealed={revealed.bonus}
                                             onReveal={() => handleReveal('bonus')}
                                             label="BONUS"
                                         >
-                                            <CardDisplay card={bonusCard} />
+                                            <div className="flex flex-col items-center gap-1">
+                                                <CardDisplay card={bonusData.card} size="small" />
+                                                <div className="bg-yellow-400 text-yellow-900 font-black text-xs px-2 py-1 rounded-full whitespace-nowrap">
+                                                    Ganar: {formatCurrency(bonusData.prize)}
+                                                </div>
+                                            </div>
                                         </ScratchArea>
                                     )}
                                 </div>
                             </div>
-
-                            {/* CENTER ROW for mobile, or below for logic visual flow */}
-                            {/* Actually visual layout in image is Banker | Bonus on top row, Player on bottom row */}
                         </div>
 
-                        {/* BOTTOM ROW: PLAYER */}
+                        {/* BOTTOM: PLAYER (3 cards) */}
                         <div className="bg-[#005c3a] p-4 rounded-xl border-2 border-yellow-400/50 shadow-lg mt-2">
                             <span className="text-yellow-300 font-bold uppercase text-xs tracking-widest text-center block mb-3">TUS CARTAS</span>
-                            <div className="flex justify-center gap-2 md:gap-4 flex-wrap">
+                            <div className="flex justify-center gap-4 flex-wrap">
                                 {playerCards.map((card, i) => (
                                     <ScratchArea
                                         key={`player-${i}`}
@@ -399,7 +458,7 @@ export function Scratch75() {
                             </div>
                         </div>
 
-                        {/* FOOTER: PRIZE */}
+                        {/* FOOTER: MAIN PRIZE */}
                         <div className="mt-2 text-center">
                             <div className="w-48 mx-auto h-20">
                                 <ScratchArea
@@ -451,7 +510,6 @@ export function Scratch75() {
                                 </div>
                             </motion.div>
                         )}
-
                     </div>
                 </div>
             )}
