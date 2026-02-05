@@ -155,36 +155,71 @@ export function Scratch75() {
 
 
     // Helper: Generate safe hand with max score
-    const generateSafeHand = (deck: CardData[], maxScore: number, count: number): CardData[] => {
+    // Added 'limitToLow' param to prioritize Ranks 1-4 for Player
+    const generateSafeHand = (deck: CardData[], maxScore: number, count: number, limitToLow = false): CardData[] => {
         let attempts = 0;
         while (attempts < 500) {
             // Create temp deck indices to simulate draw
-            const currentDeckSize = deck.length;
-            const indices: number[] = [];
-            while (indices.length < count) {
-                const r = Math.floor(Math.random() * currentDeckSize);
-                if (!indices.includes(r)) indices.push(r);
+            const currentDeck = [...deck]; // Use a copy to simulate draws without modifying original deck yet
+            const hand: CardData[] = [];
+
+            // Optimization: Filter deck for low cards if requested (heuristic)
+            const lowCardIndices = limitToLow
+                ? currentDeck.map((c, i) => c.value <= 4 ? i : -1).filter(i => i !== -1)
+                : [];
+
+
+
+            for (let i = 0; i < count; i++) {
+                if (currentDeck.length === 0) break;
+
+                let cardIndexInCurrentDeck;
+                // 70% chance to pick from low cards if limitToLow is key
+                if (limitToLow && lowCardIndices.length > 0 && Math.random() < 0.7) {
+                    // Pick a low card index from the filtered list
+                    const lIdx = Math.floor(Math.random() * lowCardIndices.length);
+                    cardIndexInCurrentDeck = lowCardIndices[lIdx];
+                } else {
+                    // Pick a random card index
+                    cardIndexInCurrentDeck = Math.floor(Math.random() * currentDeck.length);
+                }
+
+                // Ensure we don't draw the same card twice in the simulation
+                // This is a simplified approach; a more robust way would be to remove from currentDeck
+                // For now, we'll just pick from the currentDeck and add to hand
+                const card = currentDeck.splice(cardIndexInCurrentDeck, 1)[0];
+                hand.push(card);
+
+                // Remove from lowCardIndices if it was a low card to prevent re-selection
+                const originalCardIndex = deck.findIndex(c => c.suit === card.suit && c.rank === card.rank);
+                const lowIdxToRemove = lowCardIndices.indexOf(originalCardIndex);
+                if (lowIdxToRemove !== -1) {
+                    lowCardIndices.splice(lowIdxToRemove, 1);
+                }
             }
 
-            const hand = indices.map(i => deck[i]);
             const score = hand.reduce((acc, c) => acc + c.value, 0);
 
             if (score <= maxScore) {
-                // Determine indices in decreasing order to splice correctly
-                indices.sort((a, b) => b - a);
-                indices.forEach(idx => deck.splice(idx, 1));
+                // If a valid hand is found, remove these cards from the actual deck
+                hand.forEach(c => {
+                    const idx = deck.findIndex(dc => dc.suit === c.suit && dc.rank === c.rank);
+                    if (idx !== -1) deck.splice(idx, 1);
+                });
                 return hand;
             }
             attempts++;
         }
         // Fallback if safe generation fails (rare)
+        // Just draw random cards, might bust
         return Array(count).fill(null).map(() => deck.pop()!);
     };
 
     // --- LOGIC HELPER: GENERATE GAME RESULT ---
     // Returns the complete state for a single game round
     const generateGameResult = (currentBet: number) => {
-        const TARGET_WIN_RATE = 0.35;
+        // Increased Win Rate slightly to simulate "Banker Bust" benefit + better odds
+        const TARGET_WIN_RATE = 0.42;
         const isWin = Math.random() < TARGET_WIN_RATE;
 
         // Helper to calc strict score
@@ -196,11 +231,19 @@ export function Scratch75() {
         while (attempt < 500) {
             let deck = createDeck();
 
-            // 1. Banker (Max 7.0)
-            const bCards = generateSafeHand(deck, 7, 2);
+            // 1. Banker Generation
+            // 20% Chance for Banker to naturally "Bust" (Score > 7.5) -> Auto Win for player
+            // Otherwise, Banker tries to get a decent hand (Max 7.5 usually)
+            const bankerWillBust = Math.random() < 0.2;
+            const bankerMax = bankerWillBust ? 12 : 7.5;
+
+            // Banker draws 2 cards. if 'bankerWillBust' is true, we allow high score.
+            // If false, we restrict to 7.5
+            const bCards = generateSafeHand(deck, bankerMax, 2, false);
 
             // 2. Player (Max 7.5)
-            const pCards = generateSafeHand(deck, 7.5, 3);
+            // Prioritize low cards (limitToLow=true) to help player get good hands
+            const pCards = generateSafeHand(deck, 7.5, 3, true);
 
             // 3. Bonus
             const bonCard = deck.pop()!;
@@ -232,13 +275,27 @@ export function Scratch75() {
             const reasons: string[] = [];
 
             // Main Win Condition
+            // Rules:
+            // 1. Player > 7.5 -> Lose (Already prevented by generateSafeHand(7.5))
+            // 2. Banker > 7.5 -> Player Wins
+            // 3. Player > Banker -> Player Wins
+            // 4. Player == Banker -> Refund (Push)
+            // 5. Player == 7.5 -> Double Win (regardless of banker? usually beats banker)
+
             if (playerScore <= 7.5) {
                 if (playerScore === 7.5) {
                     win += mainPrize * 2;
                     reasons.push("¡7.5 EXACTOS!");
+                } else if (bankScore > 7.5) {
+                    win += mainPrize;
+                    reasons.push("Banca se pasa");
                 } else if (playerScore > bankScore) {
                     win += mainPrize;
                     reasons.push("Ganas a la Banca");
+                } else if (playerScore === bankScore) {
+                    // TIE = REFUND
+                    win += currentBet; // Return the bet
+                    reasons.push("Empate (Devolución)");
                 }
             }
 
@@ -250,6 +307,11 @@ export function Scratch75() {
             }
 
             // Check against Target
+            // We consider "Refund" as a 'kind of win' or 'not loss'.
+            // The isWin flag targets 'Profit' usually, but here we just match the random outcome.
+            // If isWin=true, we want (win > 0). If false, we want (win == 0).
+            // NOTE: Refund is positive winAmount, so it counts as "hitting the win".
+
             const actualIsWin = win > 0;
 
             if (actualIsWin === isWin) {
@@ -268,7 +330,7 @@ export function Scratch75() {
             attempt++;
         }
 
-        // Fallback (should rarely happen) - just return whatever generated last
+        // Fallback
         return {
             bankerCards: [] as CardData[],
             playerCards: [] as CardData[],
@@ -368,21 +430,24 @@ export function Scratch75() {
         let reasons: string[] = [];
 
         // 1. MAIN GAME
-        // Player wins if > Bankers AND <= 7.5
-        // 7.5 Exact wins double
-
         if (playerScore <= 7.5) {
             if (playerScore === 7.5) {
                 totalWin += potentialPrize * 2;
                 reasons.push("¡7.5 EXACTOS! (x2)");
+            } else if (bankScore > 7.5) {
+                totalWin += potentialPrize;
+                reasons.push("Banca se pasa");
             } else if (playerScore > bankScore) {
                 totalWin += potentialPrize;
                 reasons.push("Ganas a la Banca");
+            } else if (playerScore === bankScore) {
+                // TIE = REFUND
+                totalWin += bet;
+                reasons.push("Empate (Devolución)");
             }
         }
 
         // 2. BONUS GAME
-        // If Bonus Card Rank matches ANY Player Card Rank -> Win Bonus Prize
         if (bonusData) {
             const matchesBonus = playerCards.some(c => c.rank === bonusData.card.rank);
             if (matchesBonus) {
@@ -397,7 +462,7 @@ export function Scratch75() {
         if (totalWin > 0) {
             addCoins(totalWin);
             playSound.win();
-            toast.success(`🎉 HAS GANADO: ${formatCurrency(totalWin)}`, {
+            toast.success(`🎉 RESULTADO: ${formatCurrency(totalWin)}`, {
                 description: reasons.join(" + ")
             });
         } else {

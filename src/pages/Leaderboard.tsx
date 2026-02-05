@@ -4,18 +4,17 @@ import { cn, formatCurrency } from '../lib/utils';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
 import { COSMETIC_ITEMS } from '../lib/constants';
-
-
+import { UserProfileModal } from '../components/social/UserProfileModal'; // Import Modal
 
 export default function Leaderboard() {
     const { user } = useAuthStore();
-    // Removed saveGame as we don't force save here anymore
     const [leaders, setLeaders] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
 
+    // Modal State
+    const [selectedProfile, setSelectedProfile] = useState<any>(null);
+
     const fetchLeaders = async () => {
-        // Removed await saveGame() to make fetching instant. 
-        // Background sync (3s) handles saving now.
         setLoading(true);
         try {
             const { data, error } = await supabase
@@ -33,7 +32,7 @@ export default function Leaderboard() {
                     avatar: profile.avatar_url,
                     score: profile.lifetime_coins,
                     lastSeen: profile.last_seen,
-                    cosmetics: typeof profile.cosmetics === 'string' ? JSON.parse(profile.cosmetics) : profile.cosmetics
+                    cosmetics: typeof profile.cosmetics === 'string' ? JSON.parse(profile.cosmetics) : profile.cosmetics // Parse if needed
                 }));
                 setLeaders(formattedLeaders);
             }
@@ -57,7 +56,6 @@ export default function Leaderboard() {
     useEffect(() => {
         fetchLeaders();
 
-        // 1. Real-time subscription (Fastest)
         const channel = supabase
             .channel('leaderboard')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
@@ -65,7 +63,6 @@ export default function Leaderboard() {
             })
             .subscribe();
 
-        // 2. Polling Fallback (Guaranteed reliability)
         const interval = setInterval(() => {
             fetchLeaders();
         }, 5000);
@@ -77,45 +74,68 @@ export default function Leaderboard() {
     }, []);
 
     return (
-        <div className="p-6 max-w-3xl mx-auto">
+        <div className="p-6 max-w-4xl mx-auto pb-24">
             <div className="flex items-center justify-between mb-8">
-                <h1 className="text-3xl font-bold neon-text flex items-center gap-3">
-                    <Trophy className="text-yellow-500" />
-                    Ranking Global
+                <h1 className="text-3xl md:text-5xl font-black neon-text flex items-center gap-3 tracking-tighter italic">
+                    <Trophy className="text-yellow-500 w-10 h-10 md:w-12 md:h-12 drop-shadow-lg" />
+                    RANKING GLOBAL
                 </h1>
                 <button
                     onClick={fetchLeaders}
-                    className="p-2 rounded-full hover:bg-white/10 transition-colors"
+                    className="p-3 rounded-full hover:bg-white/10 transition-colors border border-white/5 active:scale-95"
                     disabled={loading}
                 >
-                    <RefreshCw size={20} className={cn(loading && "animate-spin")} />
+                    <RefreshCw size={24} className={cn("text-cyan-400", loading && "animate-spin")} />
                 </button>
             </div>
 
-            <div className="bg-cyber-gray/40 border border-white/5 rounded-xl overflow-hidden backdrop-blur-sm">
-                <div className="grid grid-cols-12 p-4 bg-black/20 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                    <div className="col-span-1 text-center">#</div>
-                    <div className="col-span-7">Jugador</div>
+            <div className="space-y-3">
+                {/* Header Row */}
+                <div className="grid grid-cols-12 px-6 py-2 text-xs font-bold text-gray-500 uppercase tracking-widest pl-14">
+                    <div className="col-span-1 text-center hidden md:block">#</div>
+                    <div className="col-span-8 md:col-span-7">Jugador</div>
                     <div className="col-span-4 text-right">Puntuación</div>
                 </div>
 
-                <div className="divide-y divide-white/5">
-                    {leaders.map((player, index) => (
+                {leaders.map((player, index) => {
+                    const isTop1 = index === 0;
+                    const isTop2 = index === 1;
+                    const isTop3 = index === 2;
+                    const isMe = player.id === user?.id;
+
+                    return (
                         <div
                             key={player.id}
+                            onClick={() => setSelectedProfile(player)}
                             className={cn(
-                                "grid grid-cols-12 p-4 items-center transition-colors",
-                                player.id === user?.id ? "bg-cyber-DEFAULT/10 shadow-[inset_0_0_10px_rgba(0,243,255,0.1)] border-l-2 border-cyber-DEFAULT" : "hover:bg-white/5"
+                                "relative grid grid-cols-12 p-4 items-center rounded-2xl border cursor-pointer hover:scale-[1.01] transition-all group overflow-hidden",
+                                isTop1 ? "bg-gradient-to-r from-yellow-900/40 to-black border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.2)]" :
+                                    isTop2 ? "bg-gradient-to-r from-slate-800/40 to-black border-slate-400/50" :
+                                        isTop3 ? "bg-gradient-to-r from-orange-900/40 to-black border-orange-500/50" :
+                                            isMe ? "bg-cyan-950/30 border-cyan-500/50" :
+                                                "bg-[#111] border-white/5 hover:bg-[#161616]"
                             )}
                         >
-                            <div className="col-span-1 flex justify-center font-mono font-bold text-gray-500">
-                                {index === 0 && <span className="text-2xl">🥇</span>}
-                                {index === 1 && <span className="text-2xl">🥈</span>}
-                                {index === 2 && <span className="text-2xl">🥉</span>}
-                                {index > 2 && <span>{index + 1}</span>}
+                            {/* Rank Badge */}
+                            <div className={cn(
+                                "absolute left-4 w-8 h-8 md:w-10 md:h-10 flex items-center justify-center font-black text-lg md:text-xl rounded-full z-10 shadow-lg",
+                                isTop1 ? "bg-yellow-400 text-yellow-900" :
+                                    isTop2 ? "bg-slate-300 text-slate-900" :
+                                        isTop3 ? "bg-orange-400 text-orange-900" :
+                                            "bg-gray-800 text-gray-500"
+                            )}>
+                                {index + 1}
                             </div>
-                            <div className="col-span-7 font-medium flex items-center gap-3 overflow-hidden">
-                                <div className="w-8 h-8 rounded-full bg-gray-700 border border-white/10 overflow-hidden flex-shrink-0">
+
+                            {/* Spacer for Badge */}
+                            <div className="col-span-1 hidden md:block"></div>
+
+                            {/* User Info */}
+                            <div className="col-span-8 md:col-span-7 flex items-center gap-4 pl-12 md:pl-4">
+                                <div className={cn(
+                                    "w-10 h-10 md:w-12 md:h-12 rounded-full border-2 overflow-hidden flex-shrink-0 bg-black",
+                                    isTop1 ? "border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.5)]" : "border-white/10"
+                                )}>
                                     <img
                                         src={player.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${player.username}`}
                                         alt={player.username}
@@ -125,23 +145,46 @@ export default function Leaderboard() {
                                         )}
                                     />
                                 </div>
+
                                 <div className="flex flex-col min-w-0">
                                     <div className="flex items-center gap-2">
-                                        <span className={cn("truncate", player.id === user?.id && "text-cyber-DEFAULT")}>{player.username}</span>
-                                        {player.id === user?.id && <span className="text-[10px] bg-cyber-DEFAULT text-black px-1 rounded font-bold flex-shrink-0">YOU</span>}
+                                        <span className={cn(
+                                            "truncate font-bold text-sm md:text-base",
+                                            isTop1 ? "text-yellow-200" : "text-white",
+                                            isMe && "text-cyan-400"
+                                        )}>
+                                            {player.username}
+                                        </span>
+                                        {isMe && <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.5 rounded font-bold border border-cyan-500/30">TÚ</span>}
                                     </div>
-                                    <span className="text-[10px] text-gray-500 font-mono">
+                                    <span className="text-[10px] text-gray-500 font-mono flex items-center gap-1">
+                                        {timeAgo(player.lastSeen) === 'Ahora' ? (
+                                            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                                        ) : (
+                                            <span className="w-1.5 h-1.5 bg-gray-600 rounded-full" />
+                                        )}
                                         {timeAgo(player.lastSeen)}
                                     </span>
                                 </div>
                             </div>
-                            <div className="col-span-4 text-right font-mono text-gray-300 font-bold">
+
+                            {/* Score */}
+                            <div className="col-span-4 text-right font-black font-mono text-sm md:text-xl tracking-tight text-gray-200">
                                 {formatCurrency(player.score)}
                             </div>
                         </div>
-                    ))}
-                </div>
+                    );
+                })}
             </div>
+
+            {/* Modal */}
+            {selectedProfile && (
+                <UserProfileModal
+                    isOpen={!!selectedProfile}
+                    onClose={() => setSelectedProfile(null)}
+                    profile={selectedProfile}
+                />
+            )}
         </div>
     );
 }

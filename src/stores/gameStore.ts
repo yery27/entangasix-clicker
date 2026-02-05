@@ -42,6 +42,9 @@ interface GameState {
     };
     buyCosmetic: (id: string, cost: number) => boolean;
     equipCosmetic: (type: 'frame' | 'click_effect', id: string) => void;
+
+    // Social / Bizun
+    sendClicks: (receiverId: string, amount: number) => Promise<{ success: boolean; message: string }>;
 }
 
 export const useGameStore = create<GameState>()(
@@ -181,6 +184,77 @@ export const useGameStore = create<GameState>()(
                 }
             },
 
+            sendClicks: async (receiverId, amount) => {
+                const { coins, removeCoins, saveGame } = get();
+                const { data: { user } } = await supabase.auth.getUser();
+
+                if (!user) return { success: false, message: 'No estás logueado' };
+                if (amount <= 0) return { success: false, message: 'Cantidad inválida' };
+                if (coins < amount) return { success: false, message: 'Saldo insuficiente' };
+
+                try {
+                    // 1. Fetch Receiver Profile to verify existence and get current balance
+                    const { data: receiver, error: fetchError } = await supabase
+                        .from('profiles')
+                        .select('coins, lifetime_coins, username, id')
+                        .eq('id', receiverId)
+                        .single();
+
+                    if (fetchError || !receiver) {
+                        return { success: false, message: 'Usuario no encontrado' };
+                    }
+
+                    // 2. Perform Transfer (Simulation of Transaction)
+                    // Unfortunately Supabase Client doesn't support complex transactions easily without RPC.
+                    // We will do it optimistically: Deduct Sender -> Add Receiver.
+
+                    // Deduct from Sender (Local + DB)
+                    removeCoins(amount);
+                    await saveGame(); // Force sync deduction
+
+                    // Add to Receiver (DB directly)
+                    const { error: updateError } = await supabase
+                        .from('profiles')
+                        .update({
+                            coins: Number(receiver.coins) + amount,
+                            lifetime_coins: Number(receiver.lifetime_coins) + amount // Also counts for lifetime? Maybe yes.
+                        })
+                        .eq('id', receiverId);
+
+                    if (updateError) {
+                        // CRITICAL: Refund if fails (basic safety)
+                        get().addCoins(amount); // Refund local
+                        return { success: false, message: 'Fallo en la transferencia. Reembolsado.' };
+                    }
+
+                    // 3. Notify Receiver (Realtime Broadcast)
+                    // The receiver will listen to this channel in GlobalEvents
+                    const channel = supabase.channel(`user_notifications:${receiverId}`);
+                    await channel.subscribe(async (status) => {
+                        if (status === 'SUBSCRIBED') {
+                            await channel.send({
+                                type: 'broadcast',
+                                event: 'bizun_received',
+                                payload: {
+                                    senderName: user.user_metadata?.username || user.email?.split('@')[0] || 'Anon',
+                                    senderAvatar: user.user_metadata?.avatar_url || '',
+                                    amount: amount,
+                                    timestamp: Date.now()
+                                }
+                            });
+                            // Clean up channel after send (short lived)
+                            supabase.removeChannel(channel);
+                        }
+                    });
+
+                    return { success: true, message: `Enviados ${amount} Clicks a ${receiver.username}` };
+
+                } catch (e: any) {
+                    console.error("Bizun Error:", e);
+                    return { success: false, message: e.message || 'Error desconocido' };
+                }
+            },
+
             tick: () => {
                 const { autoClickPower, lastSaveTime, saveGame, globalMultiplier } = get();
                 const now = Date.now();
@@ -301,6 +375,67 @@ export const useGameStore = create<GameState>()(
                     }
                 } catch (e) {
                     console.error('Failed to save game:', e);
+                }
+            },
+
+            sendClicks: async (receiverId: string, amount: number) => {
+                const { coins, removeCoins, addCoins, saveGame } = get();
+                const { data: { user } } = await supabase.auth.getUser();
+
+                if (!user) return { success: false, message: 'Not logged in' };
+                if (coins < amount) {
+                    toast.error('No tienes suficientes clicks.');
+                    return { success: false, message: 'Insuficiente saldo' };
+                }
+                if (receiverId === user.id) {
+                    toast.error('No puedes enviarte clicks a ti mismo.');
+                    return { success: false, message: 'Self transfer' };
+                }
+
+                // 1. Deduct locally & Save
+                removeCoins(amount);
+                await saveGame();
+
+                try {
+                    // 2. Fetch Receiver to get current balance
+                    const { data: receiver, error: fetchError } = await supabase
+                        .from('profiles')
+                        .select('coins, username')
+                        .eq('id', receiverId)
+                        .single();
+
+                    if (fetchError || !receiver) {
+                        throw new Error('Usuario no encontrado');
+                    }
+
+                    // 3. Update Receiver (Client-side increment)
+                    const newBalance = Number(receiver.coins) + amount;
+                    const { error: updateError } = await supabase
+                        .from('profiles')
+                        .update({ coins: newBalance })
+                        .eq('id', receiverId);
+
+                    if (updateError) throw updateError;
+
+                    // 4. Broadcast Event
+                    const senderName = user.user_metadata?.username || 'Anónimo';
+                    const senderAvatar = user.user_metadata?.avatar_url;
+
+                    await supabase.channel(`user_notifications:${receiverId}`).send({
+                        type: 'broadcast',
+                        event: 'bizun_received',
+                        payload: { amount, senderName, senderAvatar }
+                    });
+
+                    toast.success(`💸 Enviados ${amount.toLocaleString()} a ${receiver.username}`);
+                    return { success: true, message: 'Sent' };
+
+                } catch (error) {
+                    console.error('Bizun failed:', error);
+                    // Refund
+                    addCoins(amount);
+                    toast.error('Error en la transferencia. Se han devuelto los fondos.');
+                    return { success: false, message: 'Failed' };
                 }
             },
 
