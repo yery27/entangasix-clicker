@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../../stores/gameStore';
 import { formatCurrency, cn } from '../../lib/utils';
@@ -90,7 +90,6 @@ const ScratchArea = ({
 }
 
 const CardDisplay = ({ card }: { card: CardData }) => {
-    const isRed = card.suit === 'Oros' || card.suit === 'Copas'; // Just for styling differentiation if needed
     const symbol = { 'Oros': '🪙', 'Copas': '🏆', 'Espadas': '⚔️', 'Bastos': '🪵' }[card.suit];
 
     return (
