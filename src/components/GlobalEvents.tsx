@@ -19,11 +19,11 @@ export default function GlobalEvents() {
     useEffect(() => {
         const checkEvent = () => {
             const now = new Date();
-            const hour = now.getHours();
-            const minutes = now.getMinutes();
+            const hour = now.getUTCHours();
+            const minutes = now.getUTCMinutes();
 
             // Active every 4 hours, for the first 20 minutes
-            // 0, 4, 8, 12, 16, 20
+            // 0, 4, 8, 12, 16, 20 (UTC)
             const isEventHour = hour % 4 === 0;
             const isEventTime = isEventHour && minutes < 20;
 
