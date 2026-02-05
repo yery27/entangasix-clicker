@@ -204,7 +204,7 @@ export function Scratch75() {
         // Bonus Prize calculation
         // Usually small multiplier, occasionally big
         const bonusRand = Math.random();
-        let bonusMult = 0.5; // Refund half bet
+        let bonusMult = 1; // Minimum investment
         if (bonusRand > 0.95) bonusMult = 10;
         else if (bonusRand > 0.8) bonusMult = 5;
         else if (bonusRand > 0.5) bonusMult = 2;
@@ -306,7 +306,7 @@ export function Scratch75() {
 
         if (playerScore <= 7.5) {
             // Since Banker never busts by design (<=7.5)
-            if (playerScore > bankScore) {
+            if (playerScore >= bankScore) {
                 if (playerScore === 7.5) {
                     totalWin += potentialPrize * 2;
                     reasons.push("¡7.5 EXACTOS! (x2)");
@@ -314,10 +314,6 @@ export function Scratch75() {
                     totalWin += potentialPrize;
                     reasons.push("Ganas a la Banca");
                 }
-            } else if (playerScore === 7.5 && bankScore !== 7.5) {
-                // If banker has < 7.5 and player has 7.5, player wins double.
-                // Covered by logic above.
-                // What if Banker has 7.5 too? Tie? Usually lose or push. We'll say lose to Banker tie for simplicity unless tie rule specified.
             }
         }
 
