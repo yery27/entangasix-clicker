@@ -272,7 +272,7 @@ export function Scratch75() {
         return {
             bankerCards: [] as CardData[],
             playerCards: [] as CardData[],
-            bonusData: { card: { suit: 'Oros', rank: '1', value: 1, img: '' }, prize: 0 },
+            bonusData: { card: { suit: 'Oros' as Suit, rank: '1' as Rank, value: 1, img: '' }, prize: 0 },
             potentialPrize: 0,
             winAmount: 0,
             reasons: [],
