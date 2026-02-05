@@ -148,37 +148,31 @@ export function Scratch75() {
         prize: false
     });
 
-    // Helper: Generate safe banker hand
-    const generateBankerHand = (deck: CardData[]): CardData[] => {
+    // Helper: Generate safe hand with max score
+    const generateSafeHand = (deck: CardData[], maxScore: number, count: number): CardData[] => {
         let attempts = 0;
-        while (attempts < 100) {
-            // Draw 2 random cards from a temporary deck copy logically, but here we just pick random
-            // Since deck is shuffled passed in, we can take from top, but we need to ensure not busting
-            // Problem: If we modify deck here we might mess up player draw.
-            // Better: Draw 2, if bust, put back and shuffle, retry. 
-            // Simplified for scratch ticket simulation: Just Ensure Sum <= 7.5.
+        while (attempts < 500) {
+            // Create temp deck indices to simulate draw
+            const currentDeckSize = deck.length;
+            const indices: number[] = [];
+            while (indices.length < count) {
+                const r = Math.floor(Math.random() * currentDeckSize);
+                if (!indices.includes(r)) indices.push(r);
+            }
 
-            const c1 = deck[Math.floor(Math.random() * deck.length)];
-            const c2 = deck[Math.floor(Math.random() * deck.length)];
+            const hand = indices.map(i => deck[i]);
+            const score = hand.reduce((acc, c) => acc + c.value, 0);
 
-            // Ensure unique cards? Yes, from same deck.
-            if (c1 === c2) continue; // Basic dup check if picking by index, here simple logic
-
-            const sum = c1.value + c2.value;
-            if (sum <= 7.5) {
-                // Remove these specific instances from deck
-                const idx1 = deck.indexOf(c1);
-                deck.splice(idx1, 1);
-                const idx2 = deck.indexOf(c2);
-                deck.splice(idx2, 1);
-                return [c1, c2];
+            if (score <= maxScore) {
+                // Determine indices in decreasing order to splice correctly
+                indices.sort((a, b) => b - a);
+                indices.forEach(idx => deck.splice(idx, 1));
+                return hand;
             }
             attempts++;
         }
-        // Fallback
-        const c1 = deck.pop()!;
-        const c2 = deck.pop()!;
-        return [c1, c2];
+        // Fallback if safe generation fails (rare)
+        return Array(count).fill(null).map(() => deck.pop()!);
     };
 
     const startGame = () => {
