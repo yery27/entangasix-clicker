@@ -53,7 +53,7 @@ export function Crash() {
         // Crash point = 0.99 / (1 - U), where U is uniform (0,1)
         const r = Math.random();
         const crash = 0.99 / (1 - r);
-        const safeCrash = Math.max(1.10, Math.min(crash, 1000)); // Cap at 1000x, min 1.10x to prevent instant hate
+        const safeCrash = Math.max(1.00, Math.min(crash, 1000)); // Standard crash logic (1% instant loss chance)
 
         // To prevent instant death on 1.00:
         // We already force min 1.10x.
