@@ -361,9 +361,9 @@ export function LiveRoulette() {
                 if (user) {
                     const winnerPayload: RoundWinner = {
                         user_id: user.id,
-                        username: user.user_metadata?.username || user.email?.split('@')[0] || 'Anon',
+                        username: user.username || user.email?.split('@')[0] || 'Anon',
                         amount: totalWin,
-                        avatar_url: user.user_metadata?.avatar_url || '',
+                        avatar_url: user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`,
                     };
                     supabase.channel('room_roulette').send({
                         type: 'broadcast',
