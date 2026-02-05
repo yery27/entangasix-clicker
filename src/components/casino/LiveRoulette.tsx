@@ -118,13 +118,14 @@ export function LiveRoulette() {
 
     // --- SUPABASE REALTIME ---
     useEffect(() => {
-        // if (!user) return; // Allow spectating
-
         const channel = supabase.channel('room_roulette')
             .on('presence', { event: 'sync' }, () => {
                 const newState = channel.presenceState();
-                const users = Object.values(newState).flat() as unknown as RouletteUser[];
-                setOnlineUsers(users);
+                const rawUsers = Object.values(newState).flat() as unknown as RouletteUser[];
+
+                // Deduplicate by user_id, preferring the most recent one if multiple (though Map keeps insertion order usually, we just need unique IDs)
+                const uniqueUsers = Array.from(new Map(rawUsers.map(u => [u.user_id, u])).values());
+                setOnlineUsers(uniqueUsers);
             })
             .on('presence', { event: 'join' }, ({ newPresences }) => {
                 const newUsers = newPresences as unknown as RouletteUser[];
@@ -133,7 +134,7 @@ export function LiveRoulette() {
                 });
             })
             .on('presence', { event: 'leave' }, () => {
-                // Handle leave silently or add toast if needed
+                // leave logic
             })
             .on('broadcast', { event: 'chat' }, ({ payload }) => {
                 setChatMessages(prev => [...prev.slice(-49), payload as ChatMessage]);
@@ -156,7 +157,8 @@ export function LiveRoulette() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [user]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id]); // Only re-subscribe if the actual USER IDENTITY changes, not if balance updates.
 
     const sendMessage = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
