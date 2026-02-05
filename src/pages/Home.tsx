@@ -4,10 +4,14 @@ import { useGameStore } from '../stores/gameStore';
 import { formatCurrency, cn } from '../lib/utils';
 import { RANKS, COSMETIC_ITEMS } from '../lib/constants';
 import { Zap, TrendingUp } from 'lucide-react';
+import { useAntiCheat } from '../hooks/useAntiCheat';
 
 export default function Home() {
     const { coins, lifetimeCoins, clickPower, autoClickPower, click } = useGameStore();
     const [clicks, setClicks] = useState<{ id: number, x: number, y: number, val: number }[]>([]);
+
+    // Anti-Cheat
+    const { validateClick } = useAntiCheat();
 
     // Determine current rank
     const currentRankIndex = RANKS.findIndex(r => lifetimeCoins < r.threshold) === -1
@@ -22,6 +26,8 @@ export default function Home() {
         : 100;
 
     const handleClick = (e: React.MouseEvent) => {
+        // Anti-Cheat Check
+        if (!validateClick()) return;
         // Get click position relative to the button center roughly, or exact
         const rect = (e.target as HTMLElement).getBoundingClientRect();
         const x = e.clientX - rect.left;

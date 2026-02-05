@@ -8,12 +8,16 @@ import { useGameStore } from '../../stores/gameStore';
 import { formatCurrency } from '../../lib/utils';
 import { SocialPanel } from '../social/SocialPanel';
 import { COSMETIC_ITEMS } from '../../lib/constants';
+import { useSingleInstance } from '../../hooks/useSingleInstance';
 
 export function AppShell() {
     const { coins, cosmetics } = useGameStore();
     const { logout, user } = useAuthStore();
     const location = useLocation();
     const [isSocialOpen, setIsSocialOpen] = useState(false);
+
+    // Anti-Multi-Tab Protection
+    const { isDuplicate } = useSingleInstance();
 
     const navItems = [
         { to: '/', icon: Home, label: 'Juego' },
@@ -24,6 +28,21 @@ export function AppShell() {
 
     const equippedFrame = COSMETIC_ITEMS.frames.find(f => f.id === cosmetics.equipped.frame);
     const frameStyle = equippedFrame?.style || "border-white/20 hover:border-cyber-DEFAULT";
+
+    if (isDuplicate) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white p-4 text-center z-50 relative overflow-hidden">
+                <div className="absolute inset-0 bg-red-900/20 animate-pulse pointer-events-none" />
+                <h1 className="text-4xl font-bold mb-4 text-red-500">Múltiples Pestañas Detectadas</h1>
+                <p className="text-gray-400 mb-8 max-w-md">
+                    Entangasix Clicker solo puede jugarse en una pestaña a la vez para mantener la integridad del juego y la economía.
+                </p>
+                <div className="p-4 bg-gray-900 rounded-lg border border-red-900/50">
+                    <p className="text-sm text-gray-300">Por favor, cierra esta pestaña y usa la original.</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex flex-col md:flex-row bg-cyber-dark text-white relative">
