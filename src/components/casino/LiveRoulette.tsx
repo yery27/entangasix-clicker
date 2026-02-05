@@ -10,12 +10,20 @@ import { supabase } from '../../lib/supabase';
 
 const ROUND_DURATION = 45000; // 45 seconds total round
 const SPIN_DURATION = 8000; // 8 seconds spinning
+const RESULT_DURATION = 10000; // 10 seconds result
 
 interface RouletteUser {
     user_id: string;
     username: string;
     avatar_url: string;
     online_at: string;
+}
+
+interface RoundWinner {
+    user_id: string;
+    username: string;
+    amount: number;
+    avatar_url: string;
 }
 
 interface ChatMessage {
@@ -52,6 +60,7 @@ export function LiveRoulette() {
     // Multiplayer State
     const [onlineUsers, setOnlineUsers] = useState<RouletteUser[]>([]);
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+    const [roundWinners, setRoundWinners] = useState<RoundWinner[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [timeOffset, setTimeOffset] = useState(0);
 
@@ -129,6 +138,9 @@ export function LiveRoulette() {
             .on('broadcast', { event: 'chat' }, ({ payload }) => {
                 setChatMessages(prev => [...prev.slice(-49), payload as ChatMessage]);
             })
+            .on('broadcast', { event: 'win' }, ({ payload }) => {
+                setRoundWinners(prev => [...prev, payload as RoundWinner]);
+            })
             .subscribe(async (status) => {
                 if (status === 'SUBSCRIBED' && user) {
                     const avatar = user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`;
@@ -185,15 +197,16 @@ export function LiveRoulette() {
             const remaining = ROUND_DURATION - cycleTime;
 
             // Logic States
-            if (remaining > SPIN_DURATION + 2000) {
+            if (remaining > SPIN_DURATION + RESULT_DURATION) {
                 // Betting Phase
                 if (gameState !== 'BETTING') {
                     setGameState('BETTING');
                     setLastWin(null);
+                    setRoundWinners([]); // Clear winners for new round
                     hasSprunRef.current = false;
                     controls.set({ rotate: 0 });
                 }
-            } else if (remaining <= SPIN_DURATION + 2000 && remaining > 2000) {
+            } else if (remaining <= SPIN_DURATION + RESULT_DURATION && remaining > RESULT_DURATION) {
                 // Spinning Phase
                 if (gameState !== 'SPINNING') {
                     setGameState('SPINNING');
@@ -341,8 +354,31 @@ export function LiveRoulette() {
                 duration: 5000
             });
             // Force save on win
-            saveGame();
-            setLastWin({ number: outcome, amount: totalWin, bet: roundTotalBet });
+            if (user && totalWin > 0) saveGame();
+            // BroadCast
+            if (totalWin > 0) {
+                setLastWin({ number: outcome, amount: totalWin, bet: roundTotalBet });
+                if (user) {
+                    const winnerPayload: RoundWinner = {
+                        user_id: user.id,
+                        username: user.user_metadata?.username || user.email?.split('@')[0] || 'Anon',
+                        amount: totalWin,
+                        avatar_url: user.user_metadata?.avatar_url || '',
+                    };
+                    supabase.channel('room_roulette').send({
+                        type: 'broadcast',
+                        event: 'win',
+                        payload: winnerPayload,
+                    });
+                    // Add self to local list immediately
+                    setRoundWinners(prev => {
+                        if (prev.some(w => w.user_id === winnerPayload.user_id)) return prev;
+                        return [...prev, winnerPayload];
+                    });
+                }
+            } else {
+                setLastWin({ number: outcome, amount: totalWin, bet: roundTotalBet });
+            }
         } else {
             if (roundTotalBet > 0) {
                 playSound.loss();
@@ -378,7 +414,7 @@ export function LiveRoulette() {
                         "font-mono text-xl md:text-2xl font-black px-4 py-1 rounded bg-black/50 border min-w-[140px] text-center",
                         gameState === 'BETTING' ? "text-green-400 border-green-500/50" : "text-red-400 border-red-500/50"
                     )}>
-                        {gameState === 'BETTING' ? `${timeLeft - 10}s` : gameState === 'SPINNING' ? 'GIRANDO' : 'RESULTADO'}
+                        {gameState === 'BETTING' ? `${Math.max(0, timeLeft - (SPIN_DURATION + RESULT_DURATION) / 1000)}s` : gameState === 'SPINNING' ? 'GIRANDO' : 'RESULTADO'}
                     </div>
                 </div>
 
@@ -554,6 +590,28 @@ export function LiveRoulette() {
                         </div>
                     </motion.div>
                 )}
+
+                {/* User List */}
+                <AnimatePresence>
+                    {roundWinners.length > 0 && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="bg-yellow-900/20 rounded-xl border border-yellow-500/30 p-3 max-h-40 overflow-y-auto backdrop-blur-md">
+                            <h3 className="text-[10px] font-bold text-yellow-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <Trophy size={12} /> Ganadores ({roundWinners.length})
+                            </h3>
+                            <div className="space-y-1">
+                                {roundWinners.map((w, i) => (
+                                    <div key={i} className="flex items-center justify-between bg-yellow-400/10 p-1 px-2 rounded-lg border border-yellow-500/20">
+                                        <div className="flex items-center gap-2">
+                                            <img src={w.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${w.username}`} className="w-5 h-5 rounded-full bg-black" />
+                                            <span className="text-xs font-bold truncate max-w-[80px] text-white">{w.username}</span>
+                                        </div>
+                                        <span className="text-xs font-mono font-bold text-yellow-200">+{formatCurrency(w.amount)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 {/* User List */}
                 <div className="bg-black/60 rounded-xl border border-white/10 p-4 max-h-48 overflow-y-auto backdrop-blur-md">
