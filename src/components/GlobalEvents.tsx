@@ -24,9 +24,9 @@ export default function GlobalEvents() {
             const hour = now.getUTCHours();
             const minutes = now.getUTCMinutes();
 
-            // Active every 4 hours, for the first 20 minutes
-            // 0, 4, 8, 12, 16, 20 (UTC)
-            const isEventHour = hour % 4 === 0;
+            // Active every 1 hour, for the first 20 minutes (Enhanced frequency for visibility)
+            // 0, 1, 2, ... (UTC)
+            const isEventHour = hour % 1 === 0;
             const isEventTime = isEventHour && minutes < 20;
 
             if (isEventTime !== isActive) {

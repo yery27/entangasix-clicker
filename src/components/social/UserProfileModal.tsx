@@ -1,9 +1,10 @@
-import { formatCurrency } from "../../lib/utils";
+import { formatCurrency, cn } from "../../lib/utils";
 import { User, Wallet, UserPlus, Check, Send, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useGameStore } from "../../stores/gameStore";
 import { motion, AnimatePresence } from "framer-motion";
+import { COSMETIC_ITEMS } from "../../lib/constants";
 
 interface UserProfileModalProps {
     isOpen: boolean;
@@ -68,7 +69,13 @@ export function UserProfileModal({ isOpen, onClose, profile }: UserProfileModalP
                             {/* Avatar Section */}
                             <div className="relative group mt-4">
                                 <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-full blur opacity-50 group-hover:opacity-100 transition-opacity" />
-                                <div className="w-24 h-24 rounded-full border-4 border-[#0f172a] relative z-10 shadow-2xl overflow-hidden bg-black">
+                                <div className={cn(
+                                    "w-24 h-24 rounded-full border-4 border-[#0f172a] relative z-10 shadow-2xl overflow-hidden bg-black",
+                                    // Use type assertion or optional chaining safely since profile type is loose here
+                                    (profile as any).cosmetics?.equipped?.frame
+                                        ? COSMETIC_ITEMS.frames.find(f => f.id === (profile as any).cosmetics.equipped.frame)?.style
+                                        : "border-[#0f172a]"
+                                )}>
                                     <img
                                         src={profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`}
                                         alt={profile.username}
@@ -98,8 +105,8 @@ export function UserProfileModal({ isOpen, onClose, profile }: UserProfileModalP
                                         if (!isFriend) toast.success(`¡Ahora sigues a ${profile.username}!`);
                                     }}
                                     className={`flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${isFriend
-                                            ? "bg-green-500/20 text-green-400 border border-green-500/50"
-                                            : "bg-white/5 hover:bg-white/10 text-white border border-white/10"
+                                        ? "bg-green-500/20 text-green-400 border border-green-500/50"
+                                        : "bg-white/5 hover:bg-white/10 text-white border border-white/10"
                                         }`}
                                 >
                                     {isFriend ? <Check size={18} /> : <UserPlus size={18} />}

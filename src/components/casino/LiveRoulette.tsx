@@ -269,43 +269,66 @@ export function LiveRoulette() {
         }
     };
 
+    const isProcessing = useRef(false);
+
     const clearBets = () => {
         if (gameState !== 'BETTING') return;
-        // Refund
-        const refund = Object.values(bets).reduce((a, b) => a + b, 0);
-        addCoins(refund);
-        setBets({});
-        playSound.click();
+        if (isProcessing.current) return;
+        isProcessing.current = true;
+
+        try {
+            // Refund
+            const refund = Object.values(bets).reduce((a, b) => a + b, 0);
+            addCoins(refund);
+            setBets({});
+            playSound.click();
+        } finally {
+            setTimeout(() => isProcessing.current = false, 250);
+        }
     };
 
     const repeatBets = () => {
         if (gameState !== 'BETTING') return;
         if (!previousBets) return;
-        const prevTotal = Object.values(previousBets).reduce((a, b) => a + b, 0);
-        if (coins < prevTotal) {
-            toast.error('Sin fondos para repetir');
-            return;
-        }
-        if (removeCoins(prevTotal)) {
-            setBets(previousBets);
-            playSound.click();
+        if (isProcessing.current) return;
+        isProcessing.current = true;
+
+        try {
+            const prevTotal = Object.values(previousBets).reduce((a, b) => a + b, 0);
+            if (coins < prevTotal) {
+                toast.error('Sin fondos para repetir');
+                return;
+            }
+            if (removeCoins(prevTotal)) {
+                setBets(previousBets);
+                playSound.click();
+            }
+        } finally {
+            setTimeout(() => isProcessing.current = false, 250);
         }
     };
 
     const doubleBets = () => {
         if (gameState !== 'BETTING') return;
         if (Object.keys(bets).length === 0) return;
-        if (coins < totalBet) {
-            toast.error('Sin fondos para doblar');
-            return;
-        }
-        if (removeCoins(totalBet)) {
-            setBets(prev => {
-                const newBets: Record<string, number> = {};
-                Object.entries(prev).forEach(([k, v]) => newBets[k] = v * 2);
-                return newBets;
-            });
-            playSound.click();
+        if (isProcessing.current) return;
+        isProcessing.current = true;
+
+        try {
+            if (coins < totalBet) {
+                toast.error('Sin fondos para doblar');
+                return;
+            }
+            if (removeCoins(totalBet)) {
+                setBets(prev => {
+                    const newBets: Record<string, number> = {};
+                    Object.entries(prev).forEach(([k, v]) => newBets[k] = v * 2);
+                    return newBets;
+                });
+                playSound.click();
+            }
+        } finally {
+            setTimeout(() => isProcessing.current = false, 250);
         }
     };
 

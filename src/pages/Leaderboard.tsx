@@ -134,15 +134,15 @@ export default function Leaderboard() {
                             <div className="col-span-8 md:col-span-7 flex items-center gap-4 pl-12 md:pl-4">
                                 <div className={cn(
                                     "w-10 h-10 md:w-12 md:h-12 rounded-full border-2 overflow-hidden flex-shrink-0 bg-black",
-                                    isTop1 ? "border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.5)]" : "border-white/10"
+                                    // Apply Cosmetic Frame Buffer OR Default Rank Border
+                                    player.cosmetics?.equipped?.frame
+                                        ? COSMETIC_ITEMS.frames.find(f => f.id === player.cosmetics.equipped.frame)?.style
+                                        : (isTop1 ? "border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.5)]" : "border-white/10")
                                 )}>
                                     <img
                                         src={player.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${player.username}`}
                                         alt={player.username}
-                                        className={cn(
-                                            "w-full h-full object-cover",
-                                            COSMETIC_ITEMS.frames.find(f => f.id === player.cosmetics?.equipped?.frame)?.style
-                                        )}
+                                        className="w-full h-full object-cover"
                                     />
                                 </div>
 
