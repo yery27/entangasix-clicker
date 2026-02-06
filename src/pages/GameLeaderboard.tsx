@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { RefreshCw, Gamepad2 } from 'lucide-react';
-import { cn, formatCurrency } from '../lib/utils';
+import { cn, formatCurrency, formatNumber } from '../lib/utils';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
 
@@ -159,10 +159,10 @@ export default function GameLeaderboard() {
 
                                 {/* Stats */}
                                 <div className="col-span-2 text-center font-mono font-bold text-gray-400">
-                                    {player.played}
+                                    {formatNumber(player.played)}
                                 </div>
                                 <div className="col-span-2 text-center font-mono font-bold text-green-500">
-                                    {player.wins}
+                                    {formatNumber(player.wins)}
                                 </div>
                                 <div className={cn(
                                     "col-span-3 md:col-span-3 text-right font-black font-mono text-sm md:text-xl tracking-tight",
