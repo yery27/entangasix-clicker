@@ -148,11 +148,6 @@ export function Scratch75() {
         prize: false
     });
 
-    // Bulk Play State
-    const [isBulk, setIsBulk] = useState(false);
-    const [bulkResults, setBulkResults] = useState<any[]>([]); // simplified type
-    const [bulkRevealed, setBulkRevealed] = useState<boolean[]>([]); // Track which bulk tix are revealed
-
 
     // Helper: Generate safe hand with max score
     // Added 'limitToLow' param to prioritize Ranks 1-4 for Player
@@ -473,120 +468,10 @@ export function Scratch75() {
     return (
         <div className="w-full max-w-4xl mx-auto flex flex-col items-center">
 
-            {/* --- BULK MODE UI --- */}
-            {isBulk && (
-                <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in zoom-in duration-300">
-                    {bulkResults.map((res, idx) => (
-                        <div key={idx} className="bg-[#00a86b] border-4 border-yellow-400 border-dashed rounded-[20px] p-2 relative shadow-lg transform scale-90 md:scale-100">
-                            {/* Mini Header */}
-                            <div className="flex justify-between items-center bg-white/10 rounded-lg px-2 py-1 mb-2">
-                                <span className="text-yellow-300 font-bold text-lg">7 ½</span>
-                                <span className="text-white text-xs">{formatCurrency(bet)}</span>
-                            </div>
 
-                            {/* Scratch Cover Overlay */}
-                            {!bulkRevealed[idx] ? (
-                                <button
-                                    onClick={() => {
-                                        playSound.cardFlip();
-                                        const newRev = [...bulkRevealed];
-                                        newRev[idx] = true;
-                                        setBulkRevealed(newRev);
 
-                                        if (res.winAmount > 0) {
-                                            playSound.win();
-                                            addCoins(res.winAmount);
-                                            setWinAmount(prev => prev + res.winAmount);
-                                            toast.success(`Ticket #${idx + 1}: +${formatCurrency(res.winAmount)}`);
-                                        }
-
-                                        // Check completion
-                                        if (newRev.every(r => r)) {
-                                            setIsFinished(true);
-                                        }
-                                    }}
-                                    className="absolute inset-2 z-10 flex flex-col items-center justify-center bg-cover bg-center text-center p-2 shadow-inner rounded-xl cursor-copy hover:scale-[1.02] transition-transform"
-                                    style={{
-                                        backgroundImage: 'url("https://www.transparenttextures.com/patterns/gold-scales.png")',
-                                        backgroundColor: '#FFD700'
-                                    }}
-                                >
-                                    <div className="absolute inset-0 bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 opacity-90 rounded-xl" />
-                                    <span className="relative z-10 font-black text-yellow-900 drop-shadow-md text-xl">RASCAR #{idx + 1}</span>
-                                    <Eraser className="relative z-10 w-8 h-8 text-yellow-900/50 mt-2 animate-bounce" />
-                                </button>
-                            ) : (
-                                /* Revealed Content (Mini) */
-                                <div className="flex flex-col gap-2">
-                                    {/* Banker */}
-                                    <div className="flex justify-center gap-1 bg-[#005c3a] p-1 rounded">
-                                        {res.bankerCards.map((c: any, i: number) => (
-                                            <CardDisplay key={i} card={c} size="small" />
-                                        ))}
-                                    </div>
-                                    {/* Player */}
-                                    <div className="flex justify-center gap-1 bg-[#005c3a] p-1 rounded">
-                                        {res.playerCards.map((c: any, i: number) => (
-                                            <CardDisplay key={i} card={c} size="small" />
-                                        ))}
-                                    </div>
-                                    {/* Result */}
-                                    <div className="mt-1 text-center bg-white/90 rounded-lg p-1">
-                                        {res.winAmount > 0 ? (
-                                            <div className="text-green-600 font-black text-xl">
-                                                +{formatCurrency(res.winAmount)}
-                                            </div>
-                                        ) : (
-                                            <div className="text-gray-400 font-bold text-sm">Sin Premio</div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    ))}
-
-                    {/* Bulk Actions */}
-                    <div className="col-span-full flex justify-center mt-4 gap-4">
-                        {!isFinished ? (
-                            <button
-                                onClick={() => {
-                                    playSound.cardFlip();
-                                    const allRevealed = bulkResults.map(() => true);
-                                    setBulkRevealed(allRevealed);
-
-                                    // Calc total unmatched wins
-                                    let totalAdd = 0;
-                                    bulkResults.forEach((r, i) => {
-                                        if (!bulkRevealed[i] && r.winAmount > 0) totalAdd += r.winAmount;
-                                    });
-                                    if (totalAdd > 0) {
-                                        addCoins(totalAdd);
-                                        setWinAmount(prev => prev + totalAdd);
-                                        playSound.win();
-                                    }
-                                    setIsFinished(true);
-                                }}
-                                className="bg-yellow-400 hover:bg-yellow-300 text-yellow-900 border-b-4 border-yellow-600 font-black px-8 py-3 rounded-full shadow-xl"
-                            >
-                                RASCAR TODO
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => {
-                                    setIsBulk(false);
-                                    setIsPlaying(false);
-                                }}
-                                className="bg-blue-600 text-white font-bold px-8 py-3 rounded-xl hover:bg-blue-500 shadow-xl"
-                            >
-                                VOLVER AL MENÚ
-                            </button>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* --- BETTING CONTROLS (Hide if playing ANY mode) --- */}
-            {!isPlaying && !isBulk && (
+            {/* --- BETTING CONTROLS (Hide if playing) --- */}
+            {!isPlaying && (
                 <div className="bg-black/80 backdrop-blur border border-green-500/30 p-8 rounded-3xl shadow-2xl w-full max-w-2xl mb-8 flex flex-col items-center gap-6">
                     <h2 className="text-3xl font-black text-green-400 italic">7 Y MEDIA</h2>
                     <p className="text-gray-400 text-center text-sm">
@@ -622,7 +507,7 @@ export function Scratch75() {
             )}
 
             {/* --- SINGLE GAME BOARD --- */}
-            {isPlaying && !isBulk && (
+            {isPlaying && (
                 <div className="bg-green-600 p-1 rounded-3xl shadow-2xl rotate-1 animate-in fade-in zoom-in duration-300">
                     <div className="bg-[#00a86b] border-4 border-yellow-400 border-dashed rounded-[20px] p-4 md:p-8 flex flex-col gap-6 relative max-w-3xl w-full shadow-inner">
 
