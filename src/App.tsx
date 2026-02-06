@@ -63,6 +63,8 @@ export default function App() {
     return () => clearInterval(interval);
   }, [tick]);
 
+  const [isUpdating, setIsUpdating] = React.useState(false);
+
   // Forced Update Check
   useEffect(() => {
     const checkVersion = async () => {
@@ -74,9 +76,12 @@ export default function App() {
 
         if (currentVersion && currentVersion !== data.version) {
           // New version detected!
-          console.log('🔄 New version detected. Reloading...');
+          console.log('🔄 New version detected. Preparing to update...');
+          setIsUpdating(true); // Show overlay
+
           localStorage.setItem('app_version', data.version);
-          // Clear cache and reload
+
+          // Clear cache and reload after delay
           if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(registrations => {
               for (let registration of registrations) {
@@ -84,7 +89,12 @@ export default function App() {
               }
             });
           }
-          window.location.reload();
+
+          // Delay reload to let user see "Updating" screen
+          setTimeout(() => {
+            window.location.reload();
+          }, 3000);
+
         } else if (!currentVersion) {
           // First load or storage cleared, set version
           localStorage.setItem('app_version', data.version);
@@ -102,6 +112,16 @@ export default function App() {
 
     return () => clearInterval(interval);
   }, []);
+
+  if (isUpdating) {
+    return (
+      <div className="fixed inset-0 bg-[#0f1523] z-[9999] flex flex-col items-center justify-center">
+        <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <h1 className="text-2xl font-black text-white mb-2">ACTUALIZANDO SISTEMA</h1>
+        <p className="text-gray-400">Instalando mejoras... Por favor espere.</p>
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>
