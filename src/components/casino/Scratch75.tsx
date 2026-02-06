@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../../stores/gameStore';
 import { formatCurrency, cn } from '../../lib/utils';
@@ -147,6 +147,8 @@ export function Scratch75() {
         bonus: false,
         prize: false
     });
+
+    const processing = useRef(false);
 
 
     // Helper: Generate safe hand with max score
@@ -338,13 +340,20 @@ export function Scratch75() {
     };
 
     const startGame = () => {
+        if (processing.current) return;
         if (coins < bet) {
             toast.error("Saldo insuficiente");
             return;
         }
 
+        processing.current = true;
         removeCoins(bet);
         playSound.click();
+
+        // Release lock after a short delay or when game logic stabilizes
+        // Since setIsPlaying triggers a re-render where button is hidden, 
+        // we just need to protect the initial click burst.
+        setTimeout(() => { processing.current = false; }, 500);
 
         // Generate Result
         const result = generateGameResult(bet);
