@@ -1,10 +1,9 @@
-
 import { useEffect, useState } from 'react';
-import { Trophy, RefreshCw, Gamepad2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { RefreshCw, Gamepad2 } from 'lucide-react';
 import { cn, formatCurrency } from '../lib/utils';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
-import { Link } from 'react-router-dom';
 
 const GAMES = [
     { id: 'scratch75', name: 'Rasca y Gana' },
@@ -120,10 +119,8 @@ export default function GameLeaderboard() {
                         Nadie ha jugado a esto todavía... ¡Sé el primero!
                     </div>
                 ) : (
-                    stats.map((player, index) => {
+                    stats.map((player: any, index: number) => {
                         const isTop1 = index === 0;
-                        const isTop2 = index === 1;
-                        const isTop3 = index === 2;
                         const isMe = player.id === user?.id;
 
                         return (
