@@ -346,34 +346,42 @@ export function Scratch75() {
             return;
         }
 
+        // 1. Lock process
         processing.current = true;
-        removeCoins(bet);
-        playSound.click();
 
-        // Release lock after a short delay or when game logic stabilizes
-        // Since setIsPlaying triggers a re-render where button is hidden, 
-        // we just need to protect the initial click burst.
-        setTimeout(() => { processing.current = false; }, 500);
+        try {
+            // 2. Generate result FIRST (Safe check)
+            const result = generateGameResult(bet);
 
-        // Generate Result
-        const result = generateGameResult(bet);
+            // 3. Deduct Money ONLY if generation succeeded (no error thrown)
+            removeCoins(bet);
+            playSound.click();
 
-        // Update State
-        setBankerCards(result.bankerCards);
-        setPlayerCards(result.playerCards);
-        setBonusData(result.bonusData);
-        setPotentialPrize(result.potentialPrize);
+            // 4. Update State
+            setBankerCards(result.bankerCards);
+            setPlayerCards(result.playerCards);
+            setBonusData(result.bonusData);
+            setPotentialPrize(result.potentialPrize);
 
-        setRevealed({
-            banker: [false, false],
-            player: [false, false, false],
-            bonus: false,
-            prize: false
-        });
+            setRevealed({
+                banker: [false, false],
+                player: [false, false, false],
+                bonus: false,
+                prize: false
+            });
 
-        setIsPlaying(true);
-        setIsFinished(false);
-        setWinAmount(0);
+            setIsPlaying(true);
+            setIsFinished(false);
+            setWinAmount(0);
+
+        } catch (error) {
+            console.error("Error generating game:", error);
+            toast.error("Error al iniciar el juego. No se ha cobrado nada.");
+            processing.current = false; // Release lock immediately on error
+        } finally {
+            // Release lock after delay to prevent rapid double-click
+            setTimeout(() => { processing.current = false; }, 500);
+        }
     };
 
     const handleReveal = (area: 'banker' | 'player' | 'bonus' | 'prize', index?: number) => {
