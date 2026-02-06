@@ -8,7 +8,11 @@ import { supabase } from '../lib/supabase';
 const GAMES = [
     { id: 'scratch75', name: 'Rasca y Gana' },
     { id: 'roulette', name: 'Ruleta en Vivo' },
-    // Add other games as we integrate them
+    { id: 'slots', name: 'Cyber Slots' },
+    { id: 'blackjack', name: 'Blackjack' },
+    { id: 'mines', name: 'Minas' },
+    { id: 'crash', name: 'Crash' },
+    { id: 'plinko', name: 'Plinko' },
 ];
 
 export default function GameLeaderboard() {

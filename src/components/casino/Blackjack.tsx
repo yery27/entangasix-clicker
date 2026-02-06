@@ -259,6 +259,14 @@ export function Blackjack() {
             playSound.loss();
             setMessage(`La banca gana (${dScore}) 🏠`);
         }
+
+        // Record Game Stats
+        const winAmount = (res === 'dealer_bust' || res === 'win') ? bet * 2 : (res === 'push' ? bet : 0);
+        useGameStore.getState().recordGameResult('blackjack', {
+            win: winAmount,
+            bet: bet,
+            custom: { hands: 1 }
+        });
     };
 
     const endGame = (res: string) => {
@@ -269,6 +277,13 @@ export function Blackjack() {
             setEndRoundWin(win);
             playSound.jackpot();
             setMessage("✨ ¡BLACKJACK! Pago 3:2 ✨");
+
+            // Record Stats
+            useGameStore.getState().recordGameResult('blackjack', {
+                win: Math.floor(bet * 2.5),
+                bet: bet,
+                custom: { hands: 1, blackjacks: 1 }
+            });
         }
     };
 

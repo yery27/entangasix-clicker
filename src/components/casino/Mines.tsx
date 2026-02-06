@@ -66,6 +66,14 @@ export function Mines() {
             playSound.explosion();
             setTimeout(() => playSound.loss(), 500); // Delayed loss sound
             toast.error("¡EXPLOSIÓN!", { description: "Has perdido tu apuesta." });
+
+            // Record Stats (Loss)
+            useGameStore.getState().recordGameResult('mines', {
+                win: 0,
+                bet: bet,
+                custom: { rounds: 1 }
+            });
+
             // Reveal all mines
             setRevealed([...Array(GRID_SIZE).keys()]);
         } else {
@@ -95,6 +103,14 @@ export function Mines() {
         setGameState('cashed_out');
         playSound.win();
         toast.success("¡RETIRADO!", { description: `Has ganado ${formatCurrency(winAmount)}` });
+
+        // Record Stats (Win)
+        useGameStore.getState().recordGameResult('mines', {
+            win: winAmount,
+            bet: bet,
+            custom: { rounds: 1 }
+        });
+
         // Reveal all to show where mines were
         setRevealed([...Array(GRID_SIZE).keys()]);
     };

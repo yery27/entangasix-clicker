@@ -90,6 +90,15 @@ export function Crash() {
         setHistory(prev => [finalMult, ...prev].slice(0, 10));
         playSound.explosion(); // BOOM
         toast.error(`CRASHED @ ${finalMult.toFixed(2)}x`);
+
+        // Record Stats (Loss - only if not cashed out)
+        if (!cashedOut) {
+            useGameStore.getState().recordGameResult('crash', {
+                win: 0,
+                bet: bet,
+                custom: { flights: 1 }
+            });
+        }
     };
 
     const handleCashout = () => {
@@ -101,6 +110,13 @@ export function Crash() {
         playSound.win(); // Nice win sound
 
         toast.success(`Retirado: ${formatCurrency(win)}`);
+
+        // Record Stats (Win)
+        useGameStore.getState().recordGameResult('crash', {
+            win: win,
+            bet: bet,
+            custom: { flights: 1 }
+        });
     };
 
 

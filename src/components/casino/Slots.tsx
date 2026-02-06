@@ -137,6 +137,13 @@ export function Slots() {
             setWinData({ amount: win, text });
             toast.success('GANASTE!');
         }
+
+        // Record Game Stats
+        useGameStore.getState().recordGameResult('slots', {
+            win: win,
+            bet: bet,
+            custom: { spins: 1 }
+        });
     };
 
     // Auto Spin Effect

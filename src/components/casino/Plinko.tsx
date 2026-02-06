@@ -85,6 +85,13 @@ export function Plinko() {
         if (win > 0) addCoins(win);
         setHistory(prev => [mult, ...prev].slice(0, 5));
 
+        // Record Stats (Per Ball)
+        useGameStore.getState().recordGameResult('plinko', {
+            win: win,
+            bet: currentBet,
+            custom: { balls: 1 }
+        });
+
         // Accumulate Round Win
         roundWinAccumulatorRef.current += win;
         ballsPendingRef.current = Math.max(0, ballsPendingRef.current - 1);
