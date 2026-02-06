@@ -25,7 +25,7 @@ interface GameState {
 
     // Cloud Sync
     loadGame: () => Promise<void>;
-    saveGame: () => Promise<void>;
+    saveGame: () => Promise<boolean>;
     initializeSync: () => Promise<(() => void) | undefined>;
     isLoaded: boolean;
     saveTimeout: any; // Using any to avoid NodeJS/Window timeout conflicts
@@ -264,14 +264,14 @@ export const useGameStore = create<GameState>()(
                 // Safety Guard
                 if (!get().isLoaded) {
                     // console.warn('Prevented save before load');
-                    return;
+                    return false;
                 }
 
                 try {
                     const { data: { user } } = await supabase.auth.getUser();
                     if (!user) {
                         // toast.error('No estás logueado. No se guarda.');
-                        return;
+                        return false;
                     }
 
                     const state = get();
@@ -303,9 +303,11 @@ export const useGameStore = create<GameState>()(
                         throw error;
                     } else {
                         // Uncomment if needed: toast.success('✅ Progreso guardado'); 
+                        return true;
                     }
                 } catch (e) {
                     console.error('Failed to save game:', e);
+                    return false;
                 }
             },
 
@@ -325,7 +327,13 @@ export const useGameStore = create<GameState>()(
 
                 // 1. Deduct locally & Save
                 removeCoins(amount);
-                await saveGame();
+                const saved = await saveGame();
+
+                if (!saved) {
+                    addCoins(amount);
+                    toast.error('Error de conexión. No se pudo procesar la transferencia.');
+                    return { success: false, message: 'Save failed' };
+                }
 
                 try {
                     // 2. Fetch Receiver to get current balance

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuthStore } from '../stores/authStore';
 import { Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
@@ -49,51 +50,47 @@ export default function GlobalEvents() {
 
     // --- BIZUN LISTENER ---
     const { addCoins } = useGameStore();
+    const { user } = useAuthStore();
+
     useEffect(() => {
-        // Wait for store to be loaded and user to be authed
-        const setupListener = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+        if (!user) return;
 
-            const channel = supabase
-                .channel(`user_notifications:${user.id}`)
-                .on('broadcast', { event: 'bizun_received' }, ({ payload }) => {
-                    // Play Sound
-                    const audio = new Audio('/sounds/cash_register.mp3'); // Fallback or use standard
-                    audio.play().catch(() => { });
+        const channel = supabase
+            .channel(`user_notifications:${user.id}`)
+            .on('broadcast', { event: 'bizun_received' }, ({ payload }) => {
+                // Play Sound
+                const audio = new Audio('/sounds/cash_register.mp3'); // Fallback or use standard
+                audio.play().catch(() => { });
 
-                    // Show Toast
-                    toast.success(`¡BIZUN RECIBIDO!`, {
-                        description: (
-                            <div className="flex items-center gap-3">
-                                <img
-                                    src={payload.senderAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${payload.senderName}`}
-                                    className="w-8 h-8 rounded-full border border-white/20"
-                                />
-                                <div>
-                                    <p className="font-bold text-green-400">+{payload.amount} Clicks</p>
-                                    <p className="text-xs text-gray-400">De: {payload.senderName}</p>
-                                </div>
+                // Show Toast
+                toast.success(`¡BIZUN RECIBIDO!`, {
+                    description: (
+                        <div className="flex items-center gap-3">
+                            <img
+                                src={payload.senderAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${payload.senderName}`}
+                                className="w-8 h-8 rounded-full border border-white/20"
+                            />
+                            <div>
+                                <p className="font-bold text-green-400">+{payload.amount} Clicks</p>
+                                <p className="text-xs text-gray-400">De: {payload.senderName}</p>
                             </div>
-                        ),
-                        duration: 5000,
-                    });
+                        </div>
+                    ),
+                    duration: 5000,
+                });
 
-                    // Add Coins Locally (Optimistic update, though DB is continuously synced, this makes it feel instant)
-                    // We only add if we trust it doesn't duplicate with next poll. 
-                    // Actually, since we don't have Realtime on 'profile' balance yet (only poll in gameStore), 
-                    // doing addCoins here is SAFE and makes it instant.
-                    addCoins(payload.amount);
-                })
-                .subscribe();
+                // Add Coins Locally (Optimistic update, though DB is continuously synced, this makes it feel instant)
+                // We only add if we trust it doesn't duplicate with next poll. 
+                // Actually, since we don't have Realtime on 'profile' balance yet (only poll in gameStore), 
+                // doing addCoins here is SAFE and makes it instant.
+                addCoins(payload.amount);
+            })
+            .subscribe();
 
-            return () => {
-                supabase.removeChannel(channel);
-            };
+        return () => {
+            supabase.removeChannel(channel);
         };
-
-        setupListener();
-    }, [addCoins]);
+    }, [user, addCoins]);
 
     return (
         <AnimatePresence>
@@ -102,7 +99,7 @@ export default function GlobalEvents() {
                     initial={{ y: -100, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: -100, opacity: 0 }}
-                    className="fixed top-0 left-0 w-full z-50 bg-gradient-to-r from-yellow-600 to-red-600 text-white shadow-lg overflow-hidden"
+                    className="w-full relative z-40 bg-gradient-to-r from-yellow-600 to-red-600 text-white shadow-lg overflow-hidden"
                 >
                     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20" />
                     <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between relative z-10">
