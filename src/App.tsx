@@ -63,6 +63,46 @@ export default function App() {
     return () => clearInterval(interval);
   }, [tick]);
 
+  // Forced Update Check
+  useEffect(() => {
+    const checkVersion = async () => {
+      try {
+        const response = await fetch('/version.json?t=' + Date.now());
+        if (!response.ok) return;
+        const data = await response.json();
+        const currentVersion = localStorage.getItem('app_version');
+
+        if (currentVersion && currentVersion !== data.version) {
+          // New version detected!
+          console.log('🔄 New version detected. Reloading...');
+          localStorage.setItem('app_version', data.version);
+          // Clear cache and reload
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+              for (let registration of registrations) {
+                registration.unregister();
+              }
+            });
+          }
+          window.location.reload();
+        } else if (!currentVersion) {
+          // First load or storage cleared, set version
+          localStorage.setItem('app_version', data.version);
+        }
+      } catch (error) {
+        // Silent fail (offline or dev)
+        console.warn('Version check failed', error);
+      }
+    };
+
+    // Check version every 30 seconds
+    const interval = setInterval(checkVersion, 30000);
+    // Initial check
+    checkVersion();
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <BrowserRouter>
       <Toaster position="top-center" richColors theme="dark" />

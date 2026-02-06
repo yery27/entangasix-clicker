@@ -21,7 +21,7 @@ const PIN_SPACING = 55; // Horizontal spacing
 const GRAVITY = 0.25;      // Gravity
 const FRICTION = 0.99;     // Air resistance
 const RESTITUTION = 0.6;   // Bounciness (lower = lose more energy)
-const X_BIAS = 0.15;       // <--- CRITICAL: Force applied on pin hit to push away from center
+const X_BIAS = -0.05;       // <--- CRITICAL: Negative pushes towards center (Hard Mode)
 
 // Multipliers & Colors
 const MULTIPLIERS = [10, 5, 2, 0.5, 0.2, 0.2, 0.5, 2, 5, 10];
