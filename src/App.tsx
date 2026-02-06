@@ -12,6 +12,7 @@ import Profile from './pages/Profile';
 import { useAuthStore } from './stores/authStore';
 import { useGameStore } from './stores/gameStore';
 import GlobalEvents from './components/GlobalEvents';
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -64,6 +65,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Toaster position="top-center" richColors theme="dark" />
+      <SpeedInsights />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

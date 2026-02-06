@@ -474,7 +474,7 @@ export function Scratch75() {
         <div className="w-full max-w-4xl mx-auto flex flex-col items-center">
 
             {/* --- BULK MODE UI --- */}
-            {isBulk && isPlaying && (
+            {isBulk && (
                 <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in zoom-in duration-300">
                     {bulkResults.map((res, idx) => (
                         <div key={idx} className="bg-[#00a86b] border-4 border-yellow-400 border-dashed rounded-[20px] p-2 relative shadow-lg transform scale-90 md:scale-100">
