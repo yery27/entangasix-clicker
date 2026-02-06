@@ -59,6 +59,7 @@ export function Plinko() {
 
     // State
     const [bet, setBet] = useState(100);
+    const [numBalls, setNumBalls] = useState(1);
     const [lastWin, setLastWin] = useState<{ amount: number; mult: number } | null>(null);
 
     // Refs
@@ -306,28 +307,36 @@ export function Plinko() {
 
 
     const dropBall = () => {
-        if (coins < bet) return toast.error(`Saldo insuficiente`);
+        const totalCost = bet * numBalls;
+        if (coins < totalCost) return toast.error(`Saldo insuficiente`);
 
-        removeCoins(bet);
+        removeCoins(totalCost);
         playSound.click();
 
-        // Horizontal randomization (-0.5 to 0.5px) for unpredictability
-        // Standard start X is center
-        const centerX = WIDTH / 2;
-        const randX = (Math.random() - 0.5) * 4; // Use slightly more variance to ensure it hits pins differently
+        let dropped = 0;
+        const interval = setInterval(() => {
+            if (dropped >= numBalls) {
+                clearInterval(interval);
+                return;
+            }
 
-        const newBall: Ball = {
-            id: Date.now() + Math.random(),
-            x: centerX + randX,
-            y: 20,
-            vx: 0,
-            vy: 0,
-            value: bet,
-            finished: false,
-            color: `hsl(${Math.random() * 360}, 70%, 50%)`
-        };
+            const centerX = WIDTH / 2;
+            const randX = (Math.random() - 0.5) * 4;
 
-        ballsRef.current.push(newBall);
+            const newBall: Ball = {
+                id: Date.now() + Math.random(),
+                x: centerX + randX,
+                y: 20,
+                vx: 0,
+                vy: 0,
+                value: bet,
+                finished: false,
+                color: `hsl(${Math.random() * 360}, 70%, 50%)`
+            };
+
+            ballsRef.current.push(newBall);
+            dropped++;
+        }, 150);
     };
 
     return (
@@ -339,6 +348,38 @@ export function Plinko() {
                         <span className="text-2xl">🎱</span>
                     </div>
                     <h2 className="text-2xl font-black text-white italic">PLINKO <span className="text-cyan-400">PRO</span></h2>
+                </div>
+
+                {/* Num Balls Control */}
+                <div>
+                    <div className="flex justify-between items-center mb-2">
+                        <label className="text-gray-400 text-xs font-bold uppercase tracking-wider">Bolas</label>
+                        <span className="text-cyan-400 font-black">{numBalls}</span>
+                    </div>
+                    <input
+                        type="range"
+                        min="1"
+                        max="100" // Allow up to 100 for chaos
+                        value={numBalls}
+                        onChange={(e) => setNumBalls(parseInt(e.target.value))}
+                        className="w-full accent-cyan-500 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                    />
+                </div>
+
+                {/* Num Balls Control */}
+                <div>
+                    <div className="flex justify-between items-center mb-2">
+                        <label className="text-gray-400 text-xs font-bold uppercase tracking-wider">Bolas</label>
+                        <span className="text-cyan-400 font-black">{numBalls}</span>
+                    </div>
+                    <input
+                        type="range"
+                        min="1"
+                        max="100" // Allow up to 100 for chaos
+                        value={numBalls}
+                        onChange={(e) => setNumBalls(parseInt(e.target.value))}
+                        className="w-full accent-cyan-500 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                    />
                 </div>
 
                 <div>
@@ -391,7 +432,7 @@ export function Plinko() {
                     onClick={dropBall}
                     className="w-full py-8 mt-auto bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-2xl rounded-2xl shadow-[0_0_30px_rgba(8,145,178,0.4)] transition-all active:scale-95 active:translate-y-1 border-t border-white/20"
                 >
-                    LANZAR BOLA 🟢
+                    LANZAR {numBalls > 1 ? `${numBalls} BOLAS` : 'BOLA'} 🟢
                 </button>
             </div>
 
