@@ -209,8 +209,8 @@ export function Slots() {
                 <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-black/40 p-4 rounded-2xl border border-white/5">
                     <div className="flex items-center gap-4">
                         <span className="text-purple-300 font-bold uppercase text-xs tracking-widest">Apuesta</span>
-                        <div className="flex gap-1">
-                            {[1000, 10000, 50000, 100000, 500000].map(val => (
+                        <div className="flex gap-1 flex-wrap justify-center">
+                            {[1000, 10000, 50000, 100000, 500000, 1000000, 5000000].map(val => (
                                 <button
                                     key={val}
                                     onClick={() => { playSound.click(); setBet(val); }}
