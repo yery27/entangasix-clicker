@@ -634,9 +634,8 @@ export function Scratch75() {
                                 setWinAmount(0);
                                 setIsFinished(false);
 
-                                // Set bulk mode THEN triggering play
                                 setIsBulk(true);
-                                setTimeout(() => setIsPlaying(true), 50);
+                                setIsPlaying(true);
                             }}
                             className="flex-1 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-xl font-black text-xl text-white shadow-lg transition-all transform hover:scale-[1.02]"
                         >
