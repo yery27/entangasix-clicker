@@ -480,6 +480,13 @@ export function Scratch75() {
         } else {
             playSound.loss();
         }
+
+        // Record Game Stats
+        useGameStore.getState().recordGameResult('scratch75', {
+            win: totalWin,
+            bet: bet,
+            custom: { scratched: 1 } // Track total scratched cards
+        });
     };
 
     return (

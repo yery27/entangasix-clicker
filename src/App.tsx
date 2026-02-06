@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import Shop from './pages/Shop';
 import Casino from './pages/Casino';
 import Leaderboard from './pages/Leaderboard';
+import GameLeaderboard from './pages/GameLeaderboard';
 import Profile from './pages/Profile';
 import { useAuthStore } from './stores/authStore';
 import { useGameStore } from './stores/gameStore';
@@ -80,6 +81,7 @@ export default function App() {
           <Route path="shop" element={<Shop />} />
           <Route path="casino" element={<Casino />} />
           <Route path="leaderboard" element={<Leaderboard />} />
+          <Route path="game-leaderboard" element={<GameLeaderboard />} />
           <Route path="profile" element={<Profile />} />
         </Route>
       </Routes>

@@ -45,6 +45,17 @@ interface GameState {
 
     // Social / Bizun
     sendClicks: (receiverId: string, amount: number) => Promise<{ success: boolean; message: string }>;
+
+    // Game Stats
+    gameStats: Record<string, {
+        wins: number;
+        losses: number;
+        played: number;
+        wonAmount: number;
+        lostAmount: number;
+        [key: string]: number; // Custom stats (e.g. "scratched")
+    }>;
+    recordGameResult: (gameId: string, result: { win: number; bet: number; custom?: Record<string, number> }) => void;
 }
 
 export const useGameStore = create<GameState>()(
@@ -55,6 +66,7 @@ export const useGameStore = create<GameState>()(
             clickPower: 1,
             autoClickPower: 0,
             inventory: {},
+            gameStats: {},
             lastSaveTime: Date.now(),
             soundEnabled: true,
             isLoaded: false,
@@ -63,6 +75,41 @@ export const useGameStore = create<GameState>()(
             globalMultiplier: 1,
 
             setGlobalMultiplier: (multiplier) => set({ globalMultiplier: multiplier }),
+
+            recordGameResult: (gameId, { win, bet, custom }) => {
+                const { gameStats, saveGame } = get();
+                // Ensure typed access
+                const current = gameStats[gameId] || { wins: 0, losses: 0, played: 0, wonAmount: 0, lostAmount: 0 };
+
+                const isWin = win > 0;
+
+                const newStats: any = { // Use 'any' or intersection type for flexibility with custom props
+                    ...current,
+                    played: (current.played || 0) + 1,
+                    wins: (current.wins || 0) + (isWin ? 1 : 0),
+                    losses: (current.losses || 0) + (isWin ? 0 : 1),
+                    wonAmount: (current.wonAmount || 0) + win,
+                    lostAmount: (current.lostAmount || 0) + bet,
+                };
+
+                // Merge custom numeric stats
+                if (custom) {
+                    Object.entries(custom).forEach(([key, val]) => {
+                        if (typeof val === 'number') {
+                            newStats[key] = ((current as any)[key] || 0) + val;
+                        }
+                    });
+                }
+
+                set({
+                    gameStats: {
+                        ...gameStats,
+                        [gameId]: newStats
+                    }
+                });
+
+                saveGame();
+            },
 
             toggleSound: () => {
                 const { soundEnabled } = get();
@@ -215,7 +262,7 @@ export const useGameStore = create<GameState>()(
 
                     const { data: profile, error } = await supabase
                         .from('profiles')
-                        .select('coins, lifetime_coins, click_power, auto_click_power, inventory, cosmetics')
+                        .select('coins, lifetime_coins, click_power, auto_click_power, inventory, cosmetics, game_stats')
                         .eq('id', user.id)
                         .single();
 
@@ -249,7 +296,10 @@ export const useGameStore = create<GameState>()(
                                     : profile.inventory || {},
                                 cosmetics: typeof profile.cosmetics === 'string'
                                     ? JSON.parse(profile.cosmetics)
-                                    : profile.cosmetics || { owned: [], equipped: {} }
+                                    : profile.cosmetics || { owned: [], equipped: {} },
+                                gameStats: typeof profile.game_stats === 'string'
+                                    ? JSON.parse(profile.game_stats)
+                                    : profile.game_stats || {}
                             });
                         }
                     }
@@ -291,6 +341,7 @@ export const useGameStore = create<GameState>()(
                         auto_click_power: state.autoClickPower,
                         inventory: state.inventory,
                         cosmetics: state.cosmetics,
+                        game_stats: state.gameStats,
                         last_seen: new Date().toISOString(),
                     };
 
@@ -412,7 +463,10 @@ export const useGameStore = create<GameState>()(
                                         : cloudProfile.inventory || {},
                                     cosmetics: typeof cloudProfile.cosmetics === 'string'
                                         ? JSON.parse(cloudProfile.cosmetics)
-                                        : cloudProfile.cosmetics || { owned: [], equipped: {} }
+                                        : cloudProfile.cosmetics || { owned: [], equipped: {} },
+                                    gameStats: typeof cloudProfile.game_stats === 'string'
+                                        ? JSON.parse(cloudProfile.game_stats)
+                                        : cloudProfile.game_stats || {}
                                 });
                             }
                         }

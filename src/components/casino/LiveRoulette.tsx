@@ -412,6 +412,15 @@ export function LiveRoulette() {
                 setLastWin({ number: outcome, amount: 0, bet: 0 });
             }
         }
+
+        // Record Game Stats
+        if (roundTotalBet > 0) {
+            useGameStore.getState().recordGameResult('roulette', {
+                win: totalWin,
+                bet: roundTotalBet,
+                custom: { spins: 1 }
+            });
+        }
     };
 
     const formatChip = (amount: number) => amount >= 1000000 ? (amount / 1000000).toFixed(0) + 'M' : amount >= 1000 ? (amount / 1000).toFixed(0) + 'k' : amount;

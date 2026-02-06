@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Trophy, RefreshCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Trophy, RefreshCw, Gamepad2 } from 'lucide-react';
 import { cn, formatCurrency } from '../lib/utils';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
@@ -81,13 +82,20 @@ export default function Leaderboard() {
                     <Trophy className="text-yellow-500 w-10 h-10 md:w-12 md:h-12 drop-shadow-lg" />
                     RANKING GLOBAL
                 </h1>
-                <button
-                    onClick={fetchLeaders}
-                    className="p-3 rounded-full hover:bg-white/10 transition-colors border border-white/5 active:scale-95"
-                    disabled={loading}
-                >
-                    <RefreshCw size={24} className={cn("text-cyan-400", loading && "animate-spin")} />
-                </button>
+                <div className="flex items-center gap-2">
+                    <Link to="/game-leaderboard" className="px-3 py-2 md:px-4 rounded-xl bg-purple-900/40 hover:bg-purple-900/60 transition text-xs md:text-sm font-bold border border-purple-500/50 text-purple-200 flex items-center gap-2">
+                        <Gamepad2 size={16} />
+                        <span className="hidden md:inline">Ranking por Juego</span>
+                        <span className="md:hidden">Juegos</span>
+                    </Link>
+                    <button
+                        onClick={fetchLeaders}
+                        className="p-3 rounded-full hover:bg-white/10 transition-colors border border-white/5 active:scale-95"
+                        disabled={loading}
+                    >
+                        <RefreshCw size={24} className={cn("text-cyan-400", loading && "animate-spin")} />
+                    </button>
+                </div>
             </div>
 
             <div className="space-y-3">
