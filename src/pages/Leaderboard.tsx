@@ -19,7 +19,7 @@ export default function Leaderboard() {
         try {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('id, username, avatar_url, lifetime_coins, last_seen, cosmetics')
+                .select('id, username, avatar_url, coins, lifetime_coins, last_seen, cosmetics')
                 .order('lifetime_coins', { ascending: false })
                 .limit(50);
 
@@ -30,6 +30,7 @@ export default function Leaderboard() {
                     id: profile.id,
                     username: profile.username || 'Anon',
                     avatar: profile.avatar_url,
+                    currentCoins: profile.coins,
                     score: profile.lifetime_coins,
                     lastSeen: profile.last_seen,
                     cosmetics: typeof profile.cosmetics === 'string' ? JSON.parse(profile.cosmetics) : profile.cosmetics // Parse if needed
@@ -93,8 +94,9 @@ export default function Leaderboard() {
                 {/* Header Row */}
                 <div className="grid grid-cols-12 px-6 py-2 text-xs font-bold text-gray-500 uppercase tracking-widest pl-14">
                     <div className="col-span-1 text-center hidden md:block">#</div>
-                    <div className="col-span-8 md:col-span-7">Jugador</div>
-                    <div className="col-span-4 text-right">Puntuación</div>
+                    <div className="col-span-6 md:col-span-5">Jugador</div>
+                    <div className="col-span-3 md:col-span-3 text-right text-green-500">Saldo</div>
+                    <div className="col-span-3 md:col-span-3 text-right">Total</div>
                 </div>
 
                 {leaders.map((player, index) => {
@@ -131,7 +133,7 @@ export default function Leaderboard() {
                             <div className="col-span-1 hidden md:block"></div>
 
                             {/* User Info */}
-                            <div className="col-span-8 md:col-span-7 flex items-center gap-4 pl-12 md:pl-4">
+                            <div className="col-span-6 md:col-span-5 flex items-center gap-4 pl-12 md:pl-4">
                                 <div className={cn(
                                     "w-10 h-10 md:w-12 md:h-12 rounded-full border-2 overflow-hidden flex-shrink-0 bg-black",
                                     // Apply Cosmetic Frame Buffer OR Default Rank Border
@@ -168,8 +170,13 @@ export default function Leaderboard() {
                                 </div>
                             </div>
 
-                            {/* Score */}
-                            <div className="col-span-4 text-right font-black font-mono text-sm md:text-xl tracking-tight text-gray-200">
+                            {/* Current Balance */}
+                            <div className="col-span-3 md:col-span-3 text-right font-bold font-mono text-xs md:text-lg tracking-tight text-green-400">
+                                {formatCurrency(player.currentCoins)}
+                            </div>
+
+                            {/* Total Score */}
+                            <div className="col-span-3 md:col-span-3 text-right font-black font-mono text-sm md:text-xl tracking-tight text-gray-200">
                                 {formatCurrency(player.score)}
                             </div>
                         </div>
