@@ -3,6 +3,13 @@ import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
 import { SHOP_ITEMS } from '../lib/constants';
 import { supabase } from '../lib/supabase';
+import { getISOWeek, getYear, format } from 'date-fns';
+
+interface TimeBucket {
+    id: string; // e.g., "2024-W05" or "2024-02"
+    score: number;
+    claimed?: boolean;
+}
 
 interface GameState {
     coins: number;
@@ -28,7 +35,7 @@ interface GameState {
     saveGame: () => Promise<boolean>;
     initializeSync: () => Promise<(() => void) | undefined>;
     isLoaded: boolean;
-    saveTimeout: any; // Using any to avoid NodeJS/Window timeout conflicts
+    saveTimeout: any;
 
     debouncedSave: () => void;
 
@@ -47,15 +54,20 @@ interface GameState {
     sendClicks: (receiverId: string, amount: number) => Promise<{ success: boolean; message: string }>;
 
     // Game Stats
-    gameStats: Record<string, {
-        wins: number;
-        losses: number;
-        played: number;
-        wonAmount: number;
-        lostAmount: number;
-        [key: string]: number; // Custom stats (e.g. "scratched")
-    }>;
+    gameStats: Record<string, any>;
     recordGameResult: (gameId: string, result: { win: number; bet: number; custom?: Record<string, number> }) => void;
+
+    // Time-Based Leaderboards
+    timeStats: {
+        weekly: TimeBucket;
+        monthly: TimeBucket;
+        annual: TimeBucket;
+        last_weekly?: TimeBucket;
+        last_monthly?: TimeBucket;
+        last_annual?: TimeBucket;
+    };
+    updateTimeStats: (amount: number) => void;
+    claimPrize: (period: 'weekly' | 'monthly' | 'annual', amount: number) => void;
 }
 
 export const useGameStore = create<GameState>()(
@@ -73,8 +85,57 @@ export const useGameStore = create<GameState>()(
             saveTimeout: null,
             cosmetics: { owned: [], equipped: {} },
             globalMultiplier: 1,
+            timeStats: {
+                weekly: { id: '', score: 0 },
+                monthly: { id: '', score: 0 },
+                annual: { id: '', score: 0 }
+            },
 
             setGlobalMultiplier: (multiplier) => set({ globalMultiplier: multiplier }),
+
+            updateTimeStats: (amount) => {
+                if (amount <= 0) return;
+
+                const now = new Date();
+                const currentWeek = `${getYear(now)}-W${getISOWeek(now)}`;
+                const currentMonth = format(now, 'yyyy-MM');
+                const currentYear = format(now, 'yyyy');
+
+                set(state => {
+                    const ts = { ...state.timeStats };
+
+                    // Weekly Logic
+                    if (ts.weekly.id !== currentWeek) {
+                        // Archive previous week
+                        if (ts.weekly.id) {
+                            ts.last_weekly = { ...ts.weekly, claimed: false };
+                        }
+                        // Reset
+                        ts.weekly = { id: currentWeek, score: 0 };
+                    }
+                    ts.weekly.score += amount;
+
+                    // Monthly Logic
+                    if (ts.monthly.id !== currentMonth) {
+                        if (ts.monthly.id) {
+                            ts.last_monthly = { ...ts.monthly, claimed: false };
+                        }
+                        ts.monthly = { id: currentMonth, score: 0 };
+                    }
+                    ts.monthly.score += amount;
+
+                    // Annual Logic
+                    if (ts.annual.id !== currentYear) {
+                        if (ts.annual.id) {
+                            ts.last_annual = { ...ts.annual, claimed: false };
+                        }
+                        ts.annual = { id: currentYear, score: 0 };
+                    }
+                    ts.annual.score += amount;
+
+                    return { timeStats: ts };
+                });
+            },
 
             recordGameResult: (gameId, { win, bet, custom }) => {
                 const { gameStats, saveGame } = get();
@@ -83,7 +144,22 @@ export const useGameStore = create<GameState>()(
 
                 const isWin = win > 0;
 
-                const newStats: any = { // Use 'any' or intersection type for flexibility with custom props
+                // Track net profit for leaderboards? 
+                // Or just winnings? Usually leaderboards track Score/Winnings to handle high volume.
+                // The implementation plan implies tracking "score". 
+                // Let's assume Score = Total Winnings (or Net Profit).
+                // If it's Net Profit, we substract bet. If just Volume/Coins Gained, add win.
+                // Given "clicker" nature, usually "Coins Earned" is the metric.
+                // But for casino, Net Profit is fairer.
+                // Let's stick to "Coins Added to Balance" to be safe and consistent with "AddCoins".
+                // If win > 0, we called addCoins(win).
+                // So updateTimeStats should already be called by addCoins if we hook it there.
+                // BUT recordGameResult manually calls addCoins separately in components usually.
+                // Wait, components call `addCoins` AND `recordGameResult`.
+                // Checking Plinko update: `addCoins(win); ... recordGameResult(...)`.
+                // So if we hook `addCoins`, we are good.
+
+                const newStats: any = {
                     ...current,
                     played: (current.played || 0) + 1,
                     wins: (current.wins || 0) + (isWin ? 1 : 0),
@@ -111,41 +187,59 @@ export const useGameStore = create<GameState>()(
                 saveGame();
             },
 
+            claimPrize: (period, amount) => {
+                const { timeStats, addCoins, saveGame } = get();
+                const key = `last_${period}` as keyof typeof timeStats;
+                const bucket = timeStats[key];
+
+                if (bucket && !bucket.claimed) {
+                    set(state => ({
+                        timeStats: {
+                            ...state.timeStats,
+                            [key]: { ...bucket, claimed: true }
+                        }
+                    }));
+                    addCoins(amount);
+                    toast.success(`🏆 ¡Premio de Top ${period} reclamado! +${amount.toLocaleString()}`);
+                    saveGame();
+                }
+            },
+
             toggleSound: () => {
                 const { soundEnabled } = get();
                 set({ soundEnabled: !soundEnabled });
             },
 
-            // Helper for smart saving
             debouncedSave: () => {
                 const { saveTimeout, saveGame } = get();
                 if (saveTimeout) clearTimeout(saveTimeout);
 
                 const newTimeout = setTimeout(() => {
                     saveGame();
-                }, 2000); // Save 2 seconds after last action
+                }, 2000);
 
                 set({ saveTimeout: newTimeout });
             },
 
             click: () => {
-                const { clickPower, debouncedSave, globalMultiplier } = get();
-                // Apply global multiplier
+                const { clickPower, debouncedSave, globalMultiplier, updateTimeStats } = get();
                 const amount = clickPower * globalMultiplier;
 
                 set(state => ({
                     coins: state.coins + amount,
                     lifetimeCoins: state.lifetimeCoins + amount
                 }));
+                updateTimeStats(amount);
                 debouncedSave();
             },
 
             addCoins: (amount) => {
-                const { debouncedSave } = get();
+                const { debouncedSave, updateTimeStats } = get();
                 set(state => ({
                     coins: state.coins + amount,
                     lifetimeCoins: state.lifetimeCoins + Math.max(0, amount)
                 }));
+                updateTimeStats(amount);
                 debouncedSave();
             },
 
@@ -234,7 +328,7 @@ export const useGameStore = create<GameState>()(
 
 
             tick: () => {
-                const { autoClickPower, lastSaveTime, saveGame, globalMultiplier } = get();
+                const { autoClickPower, lastSaveTime, saveGame, globalMultiplier, updateTimeStats } = get();
                 const now = Date.now();
 
                 if (autoClickPower > 0) {
@@ -244,6 +338,7 @@ export const useGameStore = create<GameState>()(
                         lifetimeCoins: state.lifetimeCoins + amount,
                         lastSaveTime: now
                     }));
+                    updateTimeStats(amount);
                 } else {
                     set({ lastSaveTime: now });
                 }
@@ -275,6 +370,18 @@ export const useGameStore = create<GameState>()(
                     const localState = get();
 
                     if (profile) {
+                        // Load Game Stats to find _time_stats
+                        const gStats = typeof profile.game_stats === 'string'
+                            ? JSON.parse(profile.game_stats)
+                            : profile.game_stats || {};
+
+                        // Extract time stats or default
+                        const tStats = gStats._time_stats || {
+                            weekly: { id: '', score: 0 },
+                            monthly: { id: '', score: 0 },
+                            annual: { id: '', score: 0 }
+                        };
+
                         const cloudLifetime = Number(profile.lifetime_coins);
                         const localLifetime = localState.lifetimeCoins;
 
@@ -297,11 +404,13 @@ export const useGameStore = create<GameState>()(
                                 cosmetics: typeof profile.cosmetics === 'string'
                                     ? JSON.parse(profile.cosmetics)
                                     : profile.cosmetics || { owned: [], equipped: {} },
-                                gameStats: typeof profile.game_stats === 'string'
-                                    ? JSON.parse(profile.game_stats)
-                                    : profile.game_stats || {}
+                                gameStats: gStats,
+                                timeStats: tStats // Load time stats
                             });
                         }
+                    } else {
+                        // Reset if no profile found (clean slate)? 
+                        // Or keep local defaults if we are initializing a new user logic elsewhere
                     }
                     set({ isLoaded: true });
 
@@ -326,22 +435,26 @@ export const useGameStore = create<GameState>()(
 
                     const state = get();
 
-                    // Retrieve username from metadata to ensure we can CREATE the profile if it's missing
-                    // (This fixes the "null value in column username" error)
                     const username = user.user_metadata?.username || user.email?.split('@')[0] || 'Unknown User';
                     const avatar_url = user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
 
+                    // Inject timeStats into gameStats for DB storage
+                    const statsToSave = {
+                        ...state.gameStats,
+                        _time_stats: state.timeStats
+                    };
+
                     const updates = {
                         id: user.id,
-                        username: username, // Critical fix: Provide username for new rows
-                        avatar_url: avatar_url, // Also good to ensure avatar is there
+                        username: username,
+                        avatar_url: avatar_url,
                         coins: state.coins,
                         lifetime_coins: state.lifetimeCoins,
                         click_power: state.clickPower,
                         auto_click_power: state.autoClickPower,
                         inventory: state.inventory,
                         cosmetics: state.cosmetics,
-                        game_stats: state.gameStats,
+                        game_stats: statsToSave,
                         last_seen: new Date().toISOString(),
                     };
 
@@ -453,6 +566,17 @@ export const useGameStore = create<GameState>()(
                             // If cloud has more progress than local, overwrite local.
                             if (cloudProfile.lifetime_coins > localState.lifetimeCoins) {
                                 console.log('Syncing from cloud (remote progress detected)...');
+
+                                const gStats = typeof cloudProfile.game_stats === 'string'
+                                    ? JSON.parse(cloudProfile.game_stats)
+                                    : cloudProfile.game_stats || {};
+
+                                const tStats = gStats._time_stats || {
+                                    weekly: { id: '', score: 0 },
+                                    monthly: { id: '', score: 0 },
+                                    annual: { id: '', score: 0 }
+                                };
+
                                 set({
                                     coins: Number(cloudProfile.coins),
                                     lifetimeCoins: Number(cloudProfile.lifetime_coins),
@@ -464,9 +588,8 @@ export const useGameStore = create<GameState>()(
                                     cosmetics: typeof cloudProfile.cosmetics === 'string'
                                         ? JSON.parse(cloudProfile.cosmetics)
                                         : cloudProfile.cosmetics || { owned: [], equipped: {} },
-                                    gameStats: typeof cloudProfile.game_stats === 'string'
-                                        ? JSON.parse(cloudProfile.game_stats)
-                                        : cloudProfile.game_stats || {}
+                                    gameStats: gStats,
+                                    timeStats: tStats
                                 });
                             }
                         }
