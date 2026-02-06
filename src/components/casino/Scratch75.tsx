@@ -610,36 +610,12 @@ export function Scratch75() {
                         ))}
                     </div>
 
-                    <div className="flex w-full gap-4">
+                    <div className="flex w-full gap-4 justify-center">
                         <button
                             onClick={startGame}
-                            className="flex-1 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 rounded-xl font-black text-xl text-white shadow-lg transition-all transform hover:scale-[1.02]"
+                            className="w-full max-w-md py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 rounded-xl font-black text-xl text-white shadow-lg transition-all transform hover:scale-[1.02]"
                         >
-                            JUGAR 1 ({formatCurrency(bet)})
-                        </button>
-                        <button
-                            onClick={() => {
-                                if (coins < bet * 5) {
-                                    toast.error("Saldo insuficiente");
-                                    return;
-                                }
-                                removeCoins(bet * 5);
-                                playSound.click();
-
-                                const results = Array(5).fill(null).map(() => generateGameResult(bet));
-
-                                // FORCE UPDATE SEQUENCE
-                                setBulkResults(results);
-                                setBulkRevealed(Array(5).fill(false));
-                                setWinAmount(0);
-                                setIsFinished(false);
-
-                                setIsBulk(true);
-                                setIsPlaying(true);
-                            }}
-                            className="flex-1 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-xl font-black text-xl text-white shadow-lg transition-all transform hover:scale-[1.02]"
-                        >
-                            JUGAR 5 ({formatCurrency(bet * 5)})
+                            JUGAR ({formatCurrency(bet)})
                         </button>
                     </div>
                 </div>
