@@ -363,54 +363,69 @@ export const useGameStore = create<GameState>()(
 
                     if (error && error.code !== 'PGRST116') {
                         console.error('Error loading game:', error);
-                        // toast.error('Error cargando partida: ' + error.message);
                         return;
                     }
 
-                    const localState = get();
+                    const MIGRATION_VERSION = 1; // INCREMENT TO WIPE EVERYONE
 
                     if (profile) {
-                        // Load Game Stats to find _time_stats
+                        // Load Game Stats
                         const gStats = typeof profile.game_stats === 'string'
                             ? JSON.parse(profile.game_stats)
                             : profile.game_stats || {};
 
-                        // Extract time stats or default
+                        // CHECK MIGRATION (FORCE WIPE)
+                        const cloudMigration = gStats._migration_version || 0;
+
+                        if (cloudMigration < MIGRATION_VERSION) {
+                            console.warn('⚠️ MIGRATION DETECTED: Wiping Progress...');
+                            const newState = {
+                                coins: 0,
+                                lifetimeCoins: 0,
+                                clickPower: 1,
+                                autoClickPower: 0,
+                                inventory: {},
+                                cosmetics: { owned: [], equipped: {} },
+                                gameStats: { ...gStats, _migration_version: MIGRATION_VERSION }, // Keep stats object but mark migrated
+                                timeStats: {
+                                    weekly: { id: '', score: 0 },
+                                    monthly: { id: '', score: 0 },
+                                    annual: { id: '', score: 0 }
+                                }
+                            };
+
+                            set({
+                                ...newState,
+                                isLoaded: true
+                            });
+
+                            // Force Save immediately to overwrite Cloud
+                            setTimeout(() => get().saveGame(), 500);
+                            toast.info("🔄 Temporada 2: Progreso Reiniciado");
+                            return;
+                        }
+
+                        // Normal Load
                         const tStats = gStats._time_stats || {
                             weekly: { id: '', score: 0 },
                             monthly: { id: '', score: 0 },
                             annual: { id: '', score: 0 }
                         };
 
-                        const cloudLifetime = Number(profile.lifetime_coins);
-                        const localLifetime = localState.lifetimeCoins;
-
-                        // SMART LOAD: Conflict Resolution
-                        if (localLifetime > cloudLifetime) {
-                            console.log('Conflict detected: Trusting Local...');
-                            toast.info('📅 Sincronizando progreso local con la nube...');
-                            set({ isLoaded: true });
-                            await get().saveGame();
-                        } else {
-                            console.log('Loading game from cloud...');
-                            set({
-                                coins: Number(profile.coins),
-                                lifetimeCoins: Number(profile.lifetime_coins),
-                                clickPower: Number(profile.click_power),
-                                autoClickPower: Number(profile.auto_click_power),
-                                inventory: typeof profile.inventory === 'string'
-                                    ? JSON.parse(profile.inventory)
-                                    : profile.inventory || {},
-                                cosmetics: typeof profile.cosmetics === 'string'
-                                    ? JSON.parse(profile.cosmetics)
-                                    : profile.cosmetics || { owned: [], equipped: {} },
-                                gameStats: gStats,
-                                timeStats: tStats // Load time stats
-                            });
-                        }
-                    } else {
-                        // Reset if no profile found (clean slate)? 
-                        // Or keep local defaults if we are initializing a new user logic elsewhere
+                        set({
+                            coins: Number(profile.coins),
+                            lifetimeCoins: Number(profile.lifetime_coins),
+                            clickPower: Number(profile.click_power),
+                            autoClickPower: Number(profile.auto_click_power),
+                            inventory: typeof profile.inventory === 'string'
+                                ? JSON.parse(profile.inventory)
+                                : profile.inventory || {},
+                            cosmetics: typeof profile.cosmetics === 'string'
+                                ? JSON.parse(profile.cosmetics)
+                                : profile.cosmetics || { owned: [], equipped: {} },
+                            gameStats: gStats,
+                            timeStats: tStats
+                        });
                     }
                     set({ isLoaded: true });
 
