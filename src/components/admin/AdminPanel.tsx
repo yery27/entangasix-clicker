@@ -4,10 +4,9 @@ import { useAuthStore } from '../../stores/authStore';
 import { toast } from 'sonner';
 import {
     Shield, Ban, Search, Coins, Trash2,
-    UserX, UserCheck, RefreshCw, Save, Activity, Users, DollarSign, Lock
+    UserCheck, RefreshCw, Save, Activity, Users, DollarSign, Lock
 } from 'lucide-react';
 import { formatCurrency } from '../../lib/utils';
-import { motion } from 'framer-motion';
 
 interface PlayerProfile {
     id: string;
@@ -70,22 +69,19 @@ export default function AdminPanel() {
     const toggleBan = async (playerId: string, currentStatus: boolean) => {
         // Optimistic update
         setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, is_banned: !currentStatus } : p));
-        toast.promise(
-            supabase.from('profiles').update({ is_banned: !currentStatus }).eq('id', playerId),
-            {
-                loading: 'Actualizando estado...',
-                success: () => {
-                    // Force refresh to ensure consistency
-                    fetchPlayers();
-                    return currentStatus ? 'Usuario Desbaneado' : 'Usuario BANEADO (Instantáneo)';
-                },
-                error: (err) => {
-                    // Revert optimistic
-                    setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, is_banned: currentStatus } : p));
-                    return 'Error al cambiar estado';
-                }
-            }
-        );
+        const toastId = toast.loading('Actualizando estado...');
+
+        try {
+            const { error } = await supabase.from('profiles').update({ is_banned: !currentStatus }).eq('id', playerId);
+            if (error) throw error;
+
+            toast.success(currentStatus ? 'Usuario Desbaneado' : 'Usuario BANEADO (Instantáneo)', { id: toastId });
+            fetchPlayers();
+        } catch (error) {
+            // Revert optimistic
+            setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, is_banned: currentStatus } : p));
+            toast.error('Error al cambiar estado', { id: toastId });
+        }
     };
 
     const updateCoins = async (playerId: string) => {

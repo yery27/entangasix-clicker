@@ -94,7 +94,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, [tick]);
 
-  const [isUpdating, setIsUpdating] = React.useState(false);
+
 
   // Forced Update Check
   useEffect(() => {
