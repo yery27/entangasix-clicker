@@ -602,7 +602,7 @@ export const useGameStore = create<GameState>()(
             }
         }),
         {
-            name: 'game-storage',
+            name: 'game-storage-v2',
         }
     )
 );
