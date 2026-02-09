@@ -186,6 +186,9 @@ export function GatesOfClicker() {
     const spin = useCallback(async () => {
         if (gameState !== 'IDLE' && !isFreeSpinMode) return;
 
+        // Safety Clean: Prevent spinning if in bonus mode but no spins left
+        if (isFreeSpinMode && freeSpins <= 0) return;
+
         const cost = anteBet ? Math.floor(bet * 1.25) : bet;
 
         if (!isFreeSpinMode) {
@@ -224,24 +227,29 @@ export function GatesOfClicker() {
 
         safeSetTimeout(() => processGrid(newGrid), 400);
 
-    }, [bet, anteBet, coins, gameState, isFreeSpinMode, removeCoins, setTotalFreeSpinWin, setGlobalFreeSpinMult, setRoundWin]);
+    }, [bet, anteBet, coins, gameState, isFreeSpinMode, freeSpins, removeCoins, setTotalFreeSpinWin, setGlobalFreeSpinMult, setRoundWin]);
 
 
     // --- EFFECT: FREE SPINS LOOP ---
     // Moved here to be after 'spin' declaration
     useEffect(() => {
-        if (isFreeSpinMode && gameState === 'IDLE' && freeSpins > 0 && triggerNextSpin.current) {
-            triggerNextSpin.current = false;
-            const timer = setTimeout(() => {
-                setFreeSpins(prev => prev - 1);
-                spin();
-            }, 1000);
-            timeoutsRef.current.push(timer);
-        } else if (isFreeSpinMode && gameState === 'IDLE' && freeSpins <= 0 && !triggerNextSpin.current) {
-            // End of Bonus
-            setIsFreeSpinMode(false);
-            setGlobalFreeSpinMult(0);
-            toast.info(`Fin del Modo Dios. Ganancia: ${formatCurrency(totalFreeSpinWin)}`);
+        if (gameState !== 'IDLE') return;
+
+        if (isFreeSpinMode) {
+            if (freeSpins > 0 && triggerNextSpin.current) {
+                triggerNextSpin.current = false;
+                const timer = setTimeout(() => {
+                    setFreeSpins(prev => prev - 1);
+                    spin();
+                }, 1000);
+                timeoutsRef.current.push(timer);
+            } else if (freeSpins <= 0) {
+                // End of Bonus - Fixed: Removed !triggerNextSpin.current check which caused soft-lock
+                setIsFreeSpinMode(false);
+                setGlobalFreeSpinMult(0);
+                triggerNextSpin.current = false;
+                toast.info(`Fin del Modo Dios. Ganancia: ${formatCurrency(totalFreeSpinWin)}`);
+            }
         }
     }, [isFreeSpinMode, gameState, freeSpins, spin, totalFreeSpinWin]);
 
