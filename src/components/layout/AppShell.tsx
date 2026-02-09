@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation, Link } from 'react-router-dom';
-import { Home, ShoppingBag, Joystick, Trophy, User, LogOut, MessageSquare } from 'lucide-react';
+import { Home, ShoppingBag, Joystick, Trophy, User, LogOut, MessageSquare, Shield } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../stores/authStore';
 import { useGameStore } from '../../stores/gameStore';
@@ -25,6 +25,10 @@ export function AppShell() {
         { to: '/casino', icon: Joystick, label: 'Casino' },
         { to: '/leaderboard', icon: Trophy, label: 'Ranking' },
     ];
+
+    if (user?.role === 'admin') {
+        navItems.push({ to: '/admin', icon: Shield, label: 'Admin' });
+    }
 
     const equippedFrame = COSMETIC_ITEMS.frames.find(f => f.id === cosmetics.equipped.frame);
     const frameStyle = equippedFrame?.style || "border-white/20 hover:border-cyber-DEFAULT";
