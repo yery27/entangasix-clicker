@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
+import { supabase } from './lib/supabase';
+import { Toaster, toast } from 'sonner';
 import { AppShell } from './components/layout/AppShell';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -45,16 +46,43 @@ export default function App() {
         }
       };
       init();
-    }
 
-    return () => {
-      active = false;
-      if (cleanup) cleanup();
+      // Realtime Security: Watch for Ban
+      const { user } = useAuthStore.getState();
+      if (user?.id) {
+        const channel = supabase
+          .channel(`security_${user.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'profiles',
+              filter: `id=eq.${user.id}`,
+            },
+            async (payload: any) => {
+              if (payload.new.is_banned) {
+                toast.error("🚫 HAS SIDO BANEADO EN TIEMPO REAL");
+                await useAuthStore.getState().logout();
+              }
+            }
+          )
+          .subscribe();
 
-      // Attempt to save on unmount/close
-      useGameStore.getState().saveGame();
-    };
-  }, [isAuthenticated, loadGame]);
+        return () => {
+          if (cleanup) cleanup();
+          supabase.removeChannel(channel);
+        };
+      }
+
+      return () => {
+        active = false;
+        if (cleanup) cleanup();
+
+        // Attempt to save on unmount/close
+        useGameStore.getState().saveGame();
+      };
+    }, [isAuthenticated, loadGame]);
 
   // Game Loop
   useEffect(() => {
