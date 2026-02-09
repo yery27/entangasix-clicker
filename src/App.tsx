@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import { Toaster, toast } from 'sonner';
@@ -26,76 +26,39 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const { tick, loadGame } = useGameStore();
-  const { checkSession, isAuthenticated } = useAuthStore();
+  const { checkSession, isAuthenticated, user } = useAuthStore();
+  const [maintenance, setMaintenance] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
+  // Initial Session Check
   useEffect(() => {
     checkSession();
   }, [checkSession]);
 
+  // Maintenance Check (Global)
   useEffect(() => {
-    let active = true;
-    let cleanup: (() => void) | undefined;
+    const checkMaintenance = async () => {
+      const { data } = await supabase
+        .from('server_settings')
+        .select('value')
+        .eq('key', 'maintenance_mode')
+        .single();
 
-    if (isAuthenticated) {
-      loadGame();
-      const init = async () => {
-        const fn = await useGameStore.getState().initializeSync();
-        if (active) {
-          cleanup = fn;
-        } else if (fn) {
-          fn();
-        }
-      };
-      init();
-
-      // Realtime Security: Watch for Ban
-      const { user } = useAuthStore.getState();
-      if (user?.id) {
-        const channel = supabase
-          .channel(`security_${user.id}`)
-          .on(
-            'postgres_changes',
-            {
-              event: 'UPDATE',
-              schema: 'public',
-              table: 'profiles',
-              filter: `id=eq.${user.id}`,
-            },
-            async (payload: any) => {
-              if (payload.new.is_banned) {
-                toast.error("🚫 HAS SIDO BANEADO EN TIEMPO REAL");
-                await useAuthStore.getState().logout();
-              }
-            }
-          )
-          .subscribe();
-
-        // Cleanup listener on unmount/re-auth
-        return () => {
-          if (cleanup) cleanup();
-          supabase.removeChannel(channel);
-        };
+      if (data && data.value === true) {
+        setMaintenance(true);
       }
-    }
-
-    return () => {
-      active = false;
-      if (cleanup) cleanup();
-
-      // Attempt to save on unmount/close
-      useGameStore.getState().saveGame();
     };
-  }, [isAuthenticated, loadGame]);
+    checkMaintenance();
 
-  // Game Loop
-  useEffect(() => {
-    const interval = setInterval(() => {
-      tick();
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [tick]);
+    // Listen for maintenance changes
+    const channel = supabase.channel('maintenance_check')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'server_settings', filter: "key=eq.maintenance_mode" }, (payload) => {
+        setMaintenance(payload.new.value === true);
+      })
+      .subscribe();
 
-  const [isUpdating, setIsUpdating] = React.useState(false);
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   // Forced Update Check ( aggressive: 15 seconds )
   useEffect(() => {
@@ -123,27 +86,72 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  if (maintenance) {
-    // Allow admins to bypass
-    const isAdmin = user?.role === 'admin' || user?.email === 'garciamartinezyeray@gmail.com';
-    if (!isAdmin) {
-      return (
-        <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white p-4 text-center">
-          <h1 className="text-6xl font-black text-red-600 mb-4 animate-pulse">MANTENIMIENTO</h1>
-          <p className="text-xl text-gray-400 max-w-md">
-            El servidor está siendo actualizado con mejoras de nivel Divino.
-            <br />Vuelve pronto.
-          </p>
-          {user && (
-            <button onClick={() => useAuthStore.getState().logout()} className="mt-8 text-sm text-gray-600 underline">
-              Cerrar Sesión (Admin Login)
-            </button>
-          )}
-        </div>
-      );
-    }
-  }
+  // Game Logic & Realtime Security
+  useEffect(() => {
+    let active = true;
+    let cleanup: (() => void) | undefined;
 
+    if (isAuthenticated) {
+      loadGame();
+      const init = async () => {
+        const fn = await useGameStore.getState().initializeSync();
+        if (active) {
+          cleanup = fn;
+        } else if (fn) {
+          fn();
+        }
+      };
+      init();
+
+      // Realtime Security: Watch for Ban
+      if (user?.id) {
+        const channel = supabase
+          .channel(`security_${user.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'profiles',
+              filter: `id=eq.${user.id}`,
+            },
+            async (payload: any) => {
+              if (payload.new.is_banned) {
+                const reason = payload.new.ban_reason || 'Incumplimiento de normas';
+                toast.error(`🚫 BANEADO: ${reason}`);
+                await useAuthStore.getState().logout();
+              }
+            }
+          )
+          .subscribe();
+
+        // Cleanup listener on unmount/re-auth
+        return () => {
+          if (cleanup) cleanup();
+          supabase.removeChannel(channel);
+        };
+      }
+    }
+
+    return () => {
+      active = false;
+      if (cleanup) cleanup();
+      useGameStore.getState().saveGame();
+    };
+  }, [isAuthenticated, loadGame, user?.id]);
+
+  // Game Loop
+  useEffect(() => {
+    const interval = setInterval(() => {
+      tick();
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [tick]);
+
+
+  // --- RENDER BLOCKERS ---
+
+  // 1. Updating Overlay
   if (isUpdating) {
     return (
       <div className="fixed inset-0 bg-black z-[9999] flex flex-col items-center justify-center text-white">
@@ -152,6 +160,34 @@ export default function App() {
         <p className="text-gray-400 mt-2">Aplicando parche divino v{Date.now().toString().slice(-4)}</p>
       </div>
     );
+  }
+
+  // 2. Maintenance Overlay
+  if (maintenance) {
+    // Allow admins to bypass
+    const isAdmin = user?.role === 'admin' || user?.email === 'garciamartinezyeray@gmail.com';
+    if (!isAuthenticated || !isAdmin) {
+      return (
+        <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white p-4 text-center">
+          <h1 className="text-6xl font-black text-red-600 mb-4 animate-pulse">MANTENIMIENTO</h1>
+          <p className="text-xl text-gray-400 max-w-md">
+            El servidor está siendo actualizado con mejoras de nivel Divino.
+            <br />Vuelve pronto.
+          </p>
+          {/* Login button for admins to get in */}
+          {!isAuthenticated && (
+            <button onClick={() => window.location.href = '/login'} className="mt-8 text-sm text-gray-600 underline">
+              Acceso Admin
+            </button>
+          )}
+          {isAuthenticated && (
+            <button onClick={() => useAuthStore.getState().logout()} className="mt-8 text-sm text-gray-600 underline">
+              Cerrar Sesión
+            </button>
+          )}
+        </div>
+      );
+    }
   }
 
   return (
