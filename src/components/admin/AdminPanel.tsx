@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { toast } from 'sonner';
@@ -228,8 +228,8 @@ export default function AdminPanel() {
                                                     <button
                                                         onClick={() => toggleBan(player.id, player.is_banned)}
                                                         className={`p-2 rounded-lg transition ${player.is_banned
-                                                                ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20'
-                                                                : 'bg-red-500/10 text-red-500 hover:bg-red-500/20'
+                                                            ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20'
+                                                            : 'bg-red-500/10 text-red-500 hover:bg-red-500/20'
                                                             }`}
                                                         title={player.is_banned ? "Desbanear" : "Banear"}
                                                     >
