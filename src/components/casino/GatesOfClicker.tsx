@@ -50,9 +50,9 @@ const SYMBOLS: Record<string, SymbolType> = {
     'shape_gem': { id: 'shape_gem', icon: Gem, color: 'text-red-500', shadow: 'red', isHighPay: false, payouts: [1, 1.5, 10] },
 
     // HIGH PAY (Golden Artifacts)
-    'relic_mouse': { id: 'relic_mouse', icon: MousePointer2, color: 'text-yellow-300', shadow: 'yellow', isHighPay: true, payouts: [1.5, 2, 12] }, // "Golden Cursor"
-    'relic_battery': { id: 'relic_battery', icon: Zap, color: 'text-cyan-300', shadow: 'cyan', isHighPay: true, payouts: [2, 5, 15] },       // "Quantum Battery"
-    'relic_crown': { id: 'relic_crown', icon: Crown, color: 'text-amber-400', shadow: 'amber', isHighPay: true, payouts: [10, 25, 50] },     // "Click Crown"
+    'relic_mouse': { id: 'relic_mouse', icon: MousePointer2, color: 'text-yellow-300', shadow: 'yellow', isHighPay: true, payouts: [2, 5, 20] }, // "Golden Cursor"
+    'relic_battery': { id: 'relic_battery', icon: Zap, color: 'text-cyan-300', shadow: 'cyan', isHighPay: true, payouts: [5, 10, 30] },       // "Quantum Battery"
+    'relic_crown': { id: 'relic_crown', icon: Crown, color: 'text-amber-400', shadow: 'amber', isHighPay: true, payouts: [20, 50, 200] },     // "Click Crown"
 };
 
 const SYMBOL_KEYS = Object.keys(SYMBOLS);
@@ -157,7 +157,6 @@ export function GatesOfClicker() {
             // Relics (High Pay): 15%
             const symbolRand = Math.random();
             const lowPayKeys = ['shape_circle', 'shape_square', 'shape_triangle', 'shape_hex', 'shape_gem'];
-            const highPayKeys = ['relic_mouse', 'relic_battery', 'relic_crown']; // Crown is rarest
 
             if (symbolRand < 0.85) {
                 symbol = lowPayKeys[Math.floor(Math.random() * lowPayKeys.length)];
