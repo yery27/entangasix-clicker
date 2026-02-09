@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import { Toaster, toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
 import { AppShell } from './components/layout/AppShell';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -111,45 +112,70 @@ export default function App() {
             // setIsUpdating(true); 
           }
           localStorage.setItem('app_version_timestamp', data.timestamp);
+          const [isUpdating, setIsUpdating] = React.useState(false);
+
+          // Forced Update Check ( aggressive: 15 seconds )
+          useEffect(() => {
+            const checkVersion = async () => {
+              try {
+                const res = await fetch('/version.json?t=' + Date.now());
+                if (res.ok) {
+                  const data = await res.json();
+                  const localTimestamp = localStorage.getItem('app_version_timestamp');
+
+                  if (localTimestamp && data.timestamp > localTimestamp) {
+                    console.log("New version detected!", data);
+                    setIsUpdating(true);
+                    setTimeout(() => window.location.reload(), 2000);
+                  }
+                  localStorage.setItem('app_version_timestamp', data.timestamp);
+                }
+              } catch (e) {
+                // quiet fail
+              }
+            };
+            checkVersion();
+            const interval = setInterval(checkVersion, 15000); // Every 15 seconds
+            return () => clearInterval(interval);
+          }, []);
+
+          if (isUpdating) {
+            return (
+              <div className="fixed inset-0 bg-black z-[9999] flex flex-col items-center justify-center text-white">
+                <Loader2 size={64} className="text-cyber-DEFAULT animate-spin mb-4" />
+                <h1 className="text-4xl font-black animate-pulse text-center">ACTUALIZANDO SISTEMA...</h1>
+                <p className="text-gray-400 mt-2">Aplicando parche divino v{Date.now().toString().slice(-4)}</p>
+              </div>
+            );
+          }
+
+          return (
+            <BrowserRouter>
+              <Toaster position="top-center" theme="dark" richColors />
+              <SpeedInsights />
+              <Routes>
+                <Route path="/login" element={
+                  isAuthenticated ? <Navigate to="/" replace /> : <Login />
+                } />
+                <Route path="/register" element={
+                  isAuthenticated ? <Navigate to="/" replace /> : <Register />
+                } />
+
+                <Route path="/" element={
+                  <ProtectedRoute>
+                    <GlobalEvents />
+                    <AppShell />
+                  </ProtectedRoute>
+                }>
+                  <Route index element={<Home />} />
+                  <Route path="shop" element={<Shop />} />
+                  <Route path="casino" element={<Casino />} />
+                  <Route path="leaderboard" element={<Leaderboard />} />
+                  <Route path="leaderboard/game/:gameId" element={<GameLeaderboard />} />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="admin" element={<AdminPanel />} />
+                </Route>
+              </Routes>
+            </BrowserRouter>
+          );
         }
-      } catch (e) {
-        // quiet fail
-      }
-    };
-    // Check on mount and periodically
-    checkVersion();
-    const interval = setInterval(checkVersion, 60 * 60 * 1000); // Every hour
-    return () => clearInterval(interval);
-  }, []);
-
-
-  return (
-    <BrowserRouter>
-      <Toaster position="top-center" theme="dark" richColors />
-      <SpeedInsights />
-      <Routes>
-        <Route path="/login" element={
-          isAuthenticated ? <Navigate to="/" replace /> : <Login />
-        } />
-        <Route path="/register" element={
-          isAuthenticated ? <Navigate to="/" replace /> : <Register />
-        } />
-
-        <Route path="/" element={
-          <ProtectedRoute>
-            <GlobalEvents />
-            <AppShell />
-          </ProtectedRoute>
-        }>
-          <Route index element={<Home />} />
-          <Route path="shop" element={<Shop />} />
-          <Route path="casino" element={<Casino />} />
-          <Route path="leaderboard" element={<Leaderboard />} />
-          <Route path="leaderboard/game/:gameId" element={<GameLeaderboard />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="admin" element={<AdminPanel />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
-  );
-}
