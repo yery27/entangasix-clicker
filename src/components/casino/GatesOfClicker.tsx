@@ -1,15 +1,16 @@
+```
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../../stores/gameStore';
 import { toast } from 'sonner';
 import { cn, formatCurrency } from '../../lib/utils';
-import {
-    Zap, Flame, MousePointer2, Crown,
-    Gem, Hexagon, Triangle, Square, Circle
+import { 
+    Zap, Flame, MousePointer2, Crown, 
+    Gem, Hexagon, Triangle, Square, Circle 
 } from 'lucide-react';
 import { playSound } from '../../lib/soundManager';
 
-// --- GAME CONFIGURATION V3.0 GOD MODE ---
+// --- GAME CONFIGURATION V3.1 OPTIMIZED ---
 const GRID_ROWS = 5;
 const GRID_COLS = 6;
 const MIN_MATCH = 8;
@@ -17,7 +18,7 @@ const SCATTER_TRIGGER = 4;
 
 // Animation Timings (ms)
 const EXPLOSION_DURATION = 0.6;
-const DELAY_BETWEEN_CASCADES = 900; // Slower for dramatic effect
+const DELAY_BETWEEN_CASCADES = 800; // Slower for dramatic effect
 
 // THEME CONSTANTS
 const GOD_THEME = {
@@ -74,6 +75,8 @@ interface GridCell {
     id: string;
     symbol: string;
     multValue?: number;
+    colIndex: number; // Stored for line drawing
+    rowIndex: number;
 }
 
 export function GatesOfClicker() {
@@ -81,7 +84,7 @@ export function GatesOfClicker() {
 
     // --- STATE ---
     const [grid, setGrid] = useState<GridCell[][]>([]);
-    const [gameState, setGameState] = useState<'IDLE' | 'SPINNING' | 'CASCADING' | 'WIN_SHOW'>('IDLE');
+    const [gameState, setGameState] = useState<'IDLE' | 'SPINNING' | 'CASCADING' | 'RESOLVING'>('IDLE');
 
     // Betting (High Roller Range)
     const [bet, setBet] = useState(1000);
@@ -91,23 +94,31 @@ export function GatesOfClicker() {
     const [roundWin, setRoundWin] = useState(0);
     const [totalMult, setTotalMult] = useState(0);
     const [currentWinText, setCurrentWinText] = useState<string | null>(null);
+    const [winningCells, setWinningCells] = useState<{c: number, r: number, color: string}[]>([]); // For Lines
+    const [winningGroups, setWinningGroups] = useState<{points: {x:number, y:number}[], color: string}[]>([]); // SVG Lines
 
     // Free Spins
     const [freeSpins, setFreeSpins] = useState(0);
     const [isFreeSpinMode, setIsFreeSpinMode] = useState(false);
     const [totalFreeSpinWin, setTotalFreeSpinWin] = useState(0);
     const [globalFreeSpinMult, setGlobalFreeSpinMult] = useState(0);
+    // Auto-spin trigger
+    const triggerNextSpin = useRef(false);
 
     // Visual Effects
     const [shake, setShake] = useState(false);
     const [lightning, setLightning] = useState(false);
 
-    const isProcessingRef = useRef(false);
     const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
     useEffect(() => {
-        return () => timeoutsRef.current.forEach(t => clearTimeout(t));
+        return () => clearAllTimeouts();
     }, []);
+
+    const clearAllTimeouts = () => {
+        timeoutsRef.current.forEach(t => clearTimeout(t));
+        timeoutsRef.current = [];
+    };
 
     const safeSetTimeout = (fn: () => void, ms: number) => {
         const id = setTimeout(fn, ms);
@@ -115,33 +126,51 @@ export function GatesOfClicker() {
         return id;
     };
 
+    // --- EFFECT: FREE SPINS LOOP ---
+    // Instead of recursion, we watch the state logic
+    useEffect(() => {
+        if (isFreeSpinMode && gameState === 'IDLE' && freeSpins > 0 && triggerNextSpin.current) {
+            triggerNextSpin.current = false;
+            const timer = setTimeout(() => {
+                setFreeSpins(prev => prev - 1);
+                spin();
+            }, 1000);
+            timeoutsRef.current.push(timer);
+        } else if (isFreeSpinMode && gameState === 'IDLE' && freeSpins <= 0 && !triggerNextSpin.current) {
+            // End of Bonus
+            setIsFreeSpinMode(false);
+            setGlobalFreeSpinMult(0);
+            toast.info(`Fin del Modo Dios.Ganancia: ${ formatCurrency(totalFreeSpinWin) } `);
+        }
+    }, [isFreeSpinMode, gameState, freeSpins, spin, totalFreeSpinWin]);
+    
     // --- LOGIC ---
 
-    const getRandomSymbol = (isAnte: boolean): GridCell => {
+    const getRandomSymbol = (c: number, r: number, isAnte: boolean): GridCell => {
         const rand = Math.random();
         const id = Math.random().toString(36).substr(2, 9);
 
         // VOLATILITY TUNING
         const scatterChance = isAnte ? 0.05 : 0.025; // 1 in 40 vs 1 in 20
-        if (rand < scatterChance) return { id, symbol: 'scatter' };
+        
+        let symbol = '';
+        let multValue = undefined;
 
-        // Multipliers: Rare but Impactful
-        if (rand < scatterChance + 0.03) {
-            // Weighted Orbs: 70% Small, 20% Medium, 9% Big, 1% GOD
+        if (rand < scatterChance) {
+            symbol = 'scatter';
+        } else if (rand < scatterChance + 0.03) {
+            symbol = 'mult';
             const orbRand = Math.random();
-            let m;
-            if (orbRand > 0.99) m = MULTIPLIER_ORBS[5]; // 500x
-            else if (orbRand > 0.90) m = MULTIPLIER_ORBS[4]; // 100x
-            else if (orbRand > 0.80) m = MULTIPLIER_ORBS[3]; // 50x
-            else if (orbRand > 0.60) m = MULTIPLIER_ORBS[2]; // 10x
-            else m = MULTIPLIER_ORBS[Math.floor(Math.random() * 2)]; // 2x-5x
-
-            return { id, symbol: `mult`, multValue: m.value };
+            if (orbRand > 0.99) multValue = 500; // 500x
+            else if (orbRand > 0.90) multValue = 100; // 100x
+            else if (orbRand > 0.80) multValue = 50; // 50x
+            else if (orbRand > 0.60) multValue = 10; // 10x
+            else multValue = [2, 3, 4, 5, 8][Math.floor(Math.random() * 5)]; // 2x-8x
+        } else {
+            symbol = SYMBOL_KEYS[Math.floor(Math.random() * SYMBOL_KEYS.length)];
         }
 
-        // Normal Symbols
-        const symbolIndex = Math.floor(Math.random() * SYMBOL_KEYS.length);
-        return { id, symbol: SYMBOL_KEYS[symbolIndex] };
+        return { id, symbol, multValue, colIndex: c, rowIndex: r };
     };
 
     const triggerShake = (intensity: 'light' | 'heavy') => {
@@ -175,7 +204,9 @@ export function GatesOfClicker() {
         setGameState('SPINNING');
         setTotalMult(0);
         setCurrentWinText(null);
-        isProcessingRef.current = true;
+        setWinningCells([]);
+        setWinningGroups([]);
+        clearAllTimeouts(); // Clear any pending timeouts from previous rounds
 
         await new Promise(resolve => safeSetTimeout(() => resolve(true), 200));
 
@@ -184,7 +215,7 @@ export function GatesOfClicker() {
         for (let c = 0; c < GRID_COLS; c++) {
             const col: GridCell[] = [];
             for (let r = 0; r < GRID_ROWS; r++) {
-                col.push(getRandomSymbol(anteBet));
+                col.push(getRandomSymbol(c, r, anteBet));
             }
             newGrid.push(col);
         }
@@ -193,97 +224,147 @@ export function GatesOfClicker() {
         // Play Drop Sound
         // playSound.click();
 
-        safeSetTimeout(() => processGrid(newGrid), 500);
+        safeSetTimeout(() => processGrid(newGrid), 400);
 
-    }, [bet, anteBet, coins, gameState, isFreeSpinMode]);
+    }, [bet, anteBet, coins, gameState, isFreeSpinMode, removeCoins, setTotalFreeSpinWin, setGlobalFreeSpinMult, setRoundWin]);
 
 
     const processGrid = async (currentGrid: GridCell[][]) => {
         setGameState('CASCADING');
 
-        const counts: Record<string, number> = {};
+        // 1. Analyze Matches
+        const counts: Record<string, GridCell[]> = {};
         let scatters = 0;
         let roundMultValues = 0;
 
-        currentGrid.flat().forEach(cell => {
+        const allCells = currentGrid.flat();
+        allCells.forEach(cell => {
             if (cell.symbol === 'scatter') scatters++;
             else if (cell.symbol === 'mult') roundMultValues += (cell.multValue || 0);
-            else counts[cell.symbol] = (counts[cell.symbol] || 0) + 1;
+            else {
+                if (!counts[cell.symbol]) counts[cell.symbol] = [];
+                counts[cell.symbol].push(cell);
+            }
         });
 
-        const winningSymbols = new Set<string>();
+        // 2. Identify Winners & Lines
+        const winningIds = new Set<string>();
+        const newWinningGroups: {points: {x:number, y:number}[], color: string}[] = [];
         let stepWin = 0;
 
-        Object.entries(counts).forEach(([sym, count]) => {
-            if (SYMBOLS[sym] && count >= MIN_MATCH) {
-                winningSymbols.add(sym);
+        Object.entries(counts).forEach(([sym, cells]) => {
+            if (SYMBOLS[sym] && cells.length >= MIN_MATCH) {
+                cells.forEach(c => winningIds.add(c.id));
+                
+                // Calculate Centers for Lines (0-100 scale relative to grid container)
+                // Col width ~= 100/6 %, Row height ~= 100/5 %
+                // Center X = (colIndex + 0.5) * (100/6)
+                // Center Y = (rowIndex + 0.5) * (100/5)
+                const points = cells.map(c => ({
+                    x: (c.colIndex + 0.5) * (100 / GRID_COLS),
+                    y: (c.rowIndex + 0.5) * (100 / GRID_ROWS)
+                }));
+                // Sort by X then Y to make drawing cleaner
+                points.sort((a, b) => a.x - b.x || a.y - b.y);
+
+                newWinningGroups.push({
+                    points, 
+                    color: getSymbolColor(sym)
+                });
+
                 const s = SYMBOLS[sym];
-                let multiplier = 0;
-                if (count >= 12) multiplier = s.payouts[2];
-                else if (count >= 10) multiplier = s.payouts[1];
+                let multiplier = s.payouts[0];
+                if (cells.length >= 12) multiplier = s.payouts[2];
+                else if (cells.length >= 10) multiplier = s.payouts[1];
                 else multiplier = s.payouts[0];
                 stepWin += bet * multiplier;
             }
         });
 
         if (stepWin > 0) {
+            // SHOW WINS
+            setWinningGroups(newWinningGroups);
             playSound.win();
             setRoundWin(prev => prev + stepWin);
-            setCurrentWinText(`+${formatCurrency(stepWin)}`);
+            setCurrentWinText(`+ ${ formatCurrency(stepWin) } `);
 
             // Dramatic Effect if Big Win
             if (stepWin > bet * 10) triggerShake('light');
 
+            // Wait for visual confirmation (Lines + Highlight)
             await new Promise(resolve => safeSetTimeout(() => resolve(true), EXPLOSION_DURATION * 1000));
+            setWinningGroups([]); // Clear lines
 
-            const nextGrid = currentGrid.map(col => {
-                const kept = col.filter(cell => !winningSymbols.has(cell.symbol));
+            // 3. Cascade Logic
+            const nextGrid = currentGrid.map((col, cIndex) => {
+                const kept = col.filter(cell => !winningIds.has(cell.id));
                 const missing = GRID_ROWS - kept.length;
-                const newCells = Array.from({ length: missing }).map(() => getRandomSymbol(anteBet));
-                return [...newCells, ...kept];
+                // Add new cells at top
+                const newCells = Array.from({ length: missing }).map((_, i) => getRandomSymbol(cIndex, i, anteBet));
+                // Remap row indices for kept cells
+                const remappedKept = kept.map((cell, i) => ({...cell, rowIndex: missing + i}));
+                
+                // New cells go to 0..missing-1.
+                // Kept cells go to missing..ROWS-1.
+                const newCellsWithPos = newCells.map((c, i) => ({...c, rowIndex: i}));
+                
+                return [...newCellsWithPos, ...remappedKept]; 
             });
-
+            
             setGrid(nextGrid);
             safeSetTimeout(() => processGrid(nextGrid), DELAY_BETWEEN_CASCADES);
 
         } else {
-            finalizeRound(currentGrid, roundWin, scatters);
+            // NO MORE WINS
+            finalizeRound(roundWin, scatters, roundMultValues);
         }
     };
 
-    const finalizeRound = async (finalGrid: GridCell[][], totalWin: number, scatters: number) => {
-        let roundMultValues = 0;
-        finalGrid.flat().forEach(c => {
-            if (c.symbol === 'mult') roundMultValues += (c.multValue || 0);
-        });
+    const getSymbolColor = (sym: string) => {
+        // Map symbol names to a consistent color for SVG lines
+        if (sym === 'shape_circle') return '#3b82f6'; // blue
+        if (sym === 'shape_square') return '#22c55e'; // green
+        if (sym === 'shape_triangle') return '#a855f7'; // purple
+        if (sym === 'shape_hex') return '#ec4899'; // pink
+        if (sym === 'shape_gem') return '#ef4444'; // red
+        if (sym === 'relic_mouse') return '#fde047'; // yellow-300
+        if (sym === 'relic_battery') return '#67e8f9'; // cyan-300
+        if (sym === 'relic_crown') return '#fbbf24'; // amber-400
+        return '#ffffff'; // Default white
+    };
 
+    const finalizeRound = async (totalWin: number, scatters: number, roundMultValues: number) => {
+        setGameState('RESOLVING');
         let finalPayout = totalWin;
+        let appliedMult = 0;
 
         // --- GOD MODE MULTIPLIER LOGIC ---
         // 1. Accumulate Multipliers animation (if any)
         if (roundMultValues > 0 && totalWin > 0) {
             // Visual wait for orb collection
-            await new Promise(resolve => safeSetTimeout(() => resolve(true), 500));
+            await new Promise(resolve => safeSetTimeout(() => resolve(true), 600));
 
             if (isFreeSpinMode) {
                 setGlobalFreeSpinMult(prev => prev + roundMultValues);
                 // "Broken" Mechanic: Add Local to Global, THEN Apply Global
                 // This scaling is exponential if user gets lucky.
-                finalPayout = totalWin * (globalFreeSpinMult + roundMultValues);
+                appliedMult = globalFreeSpinMult + roundMultValues;
+                finalPayout = totalWin * appliedMult;
 
                 // Shake heavy if mult applied is huge
-                if (globalFreeSpinMult + roundMultValues > 50) triggerShake('heavy');
+                if (appliedMult > 50) triggerShake('heavy');
             } else {
-                finalPayout = totalWin * roundMultValues;
-                if (roundMultValues > 20) triggerShake('heavy');
+                appliedMult = roundMultValues;
+                finalPayout = totalWin * appliedMult;
+                if (appliedMult > 20) triggerShake('heavy');
             }
 
-            toast.success(`¡MULTIPLICADOR APLICADO!`);
+            toast.success(`¡X${ appliedMult } !`);
             playSound.jackpot();
-            setTotalMult(isFreeSpinMode ? globalFreeSpinMult + roundMultValues : roundMultValues);
+            setTotalMult(appliedMult);
 
             // Dramactic Pause after multiplier hit
-            await new Promise(resolve => safeSetTimeout(() => resolve(true), 1200));
+            await new Promise(resolve => safeSetTimeout(() => resolve(true), 1000));
         } else if (isFreeSpinMode && totalWin > 0 && globalFreeSpinMult > 0 && roundMultValues === 0) {
             // If FreeSpin and NO new orb, usually Gates DOES NOT apply global.
             // But user asked for "Chetado". Let's apply Global if win exists?
@@ -304,37 +385,28 @@ export function GatesOfClicker() {
 
         if (scatters >= SCATTER_TRIGGER) {
             playSound.jackpot();
+            triggerShake('heavy');
             if (!isFreeSpinMode) {
-                triggerShake('heavy');
-                toast.success("⚡ MODO DIOS ACTIVADO: 15 GIROS GRATIS ⚡");
+                toast.success("⚡ 15 GIROS GRATIS ⚡");
                 setIsFreeSpinMode(true);
                 setFreeSpins(15);
                 setGlobalFreeSpinMult(0);
+                triggerNextSpin.current = true; // Start loop
             } else {
                 toast.success("⚡ RETRIGGER: +5 GIROS ⚡");
                 setFreeSpins(prev => prev + 5);
             }
+        } else if (isFreeSpinMode) {
+            triggerNextSpin.current = true; // Continue loop
         }
 
         recordGameResult('gates_god_mode', {
             win: finalPayout,
             bet: anteBet ? bet * 1.25 : bet,
-            custom: { multiplier: isFreeSpinMode ? globalFreeSpinMult : roundMultValues }
+            custom: { multiplier: appliedMult }
         });
 
-        isProcessingRef.current = false;
         setGameState('IDLE');
-
-        if (isFreeSpinMode && freeSpins > 0) {
-            safeSetTimeout(() => {
-                setFreeSpins(prev => prev - 1);
-                spin();
-            }, 1500);
-        } else if (isFreeSpinMode && freeSpins <= 0) {
-            setIsFreeSpinMode(false);
-            setGlobalFreeSpinMult(0);
-            toast.info(`Fin del Modo Dios. Ganancia: ${formatCurrency(totalFreeSpinWin)}`);
-        }
     };
 
     // --- RENDER HELPERS ---
@@ -351,25 +423,14 @@ export function GatesOfClicker() {
             {lightning && <div className="absolute inset-0 bg-white/20 z-50 animate-pulse pointer-events-none mix-blend-overlay"></div>}
 
             {/* HEADER */}
-            <div className="z-10 w-full flex justify-between items-center mb-6 pl-4 pr-4 border-b border-white/5 pb-4">
-                <div className="flex items-center gap-3">
-                    <div className="bg-gradient-to-br from-yellow-400 to-amber-700 w-12 h-12 rounded-full flex items-center justify-center shadow-[0_0_20px_orange]">
-                        <Zap className="text-white fill-white" />
-                    </div>
-                    <div>
-                        <h1 className="text-4xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-amber-400 to-yellow-600 drop-shadow-[0_2px_4px_rgba(0,0,0,1)]">
-                            GATES OF CLICKER
-                        </h1>
-                        <span className="text-[10px] text-amber-500 font-mono tracking-[0.3em] uppercase opacity-80">God Mode V3.0</span>
-                    </div>
-                </div>
-
-                <div className="flex flex-col items-end">
-                    <span className="text-xs text-gray-400 uppercase tracking-widest">Ganancia Actual</span>
-                    <div className="text-3xl font-mono font-bold text-green-400 drop-shadow-[0_0_10px_rgba(74,222,128,0.5)]">
-                        {currentWinText || formatCurrency(roundWin)}
-                    </div>
-                </div>
+            <div className="z-10 w-full flex justify-between items-center mb-6 px-4 py-2 bg-black/20 rounded-xl backdrop-blur-sm border border-white/5">
+                 <div className="flex items-center gap-2">
+                     <Zap className="text-amber-500 fill-amber-500" />
+                     <h1 className="text-2xl font-black italic text-amber-400">GATES OF CLICKER</h1>
+                 </div>
+                 <div className="text-2xl font-mono font-bold text-green-400">
+                    {currentWinText || formatCurrency(roundWin)}
+                 </div>
             </div>
 
             <div className="flex flex-col lg:flex-row gap-8 w-full z-10">
@@ -377,149 +438,154 @@ export function GatesOfClicker() {
                 {/* LEFT PANEL: STATS & CONTROLS */}
                 <div className="w-full lg:w-72 flex flex-col gap-6 order-2 lg:order-1">
 
-                    {/* ACCUMULATOR CARD */}
-                    <motion.div
-                        animate={isFreeSpinMode ? { boxShadow: ["0 0 20px #a855f7", "0 0 40px #a855f7", "0 0 20px #a855f7"] } : {}}
-                        transition={{ duration: 2, repeat: Infinity }}
-                        className={cn(
-                            "rounded-3xl p-6 border-2 relative overflow-hidden flex flex-col items-center justify-center min-h-[160px]",
-                            isFreeSpinMode
-                                ? "bg-gradient-to-br from-purple-900/80 to-indigo-950/80 border-purple-500"
-                                : "bg-white/5 border-white/10"
-                        )}
-                    >
+                    {/* STATS CARD */}
+                    <div className={cn(
+                        "rounded-3xl p-6 border-2 relative overflow-hidden flex flex-col items-center justify-center min-h-[160px] transition-colors",
+                        isFreeSpinMode ? "bg-purple-900/50 border-purple-500" : "bg-black/40 border-amber-900/40"
+                    )}>
                         {isFreeSpinMode ? (
                             <>
-                                <div className="absolute top-2 right-2 text-xs font-bold bg-purple-600 px-2 py-0.5 rounded text-white">FREE SPINS</div>
-                                <div className="text-6xl font-black text-white mb-2 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">{freeSpins}</div>
+                                <span className="text-white font-bold text-lg animate-pulse">GIROS GRATIS</span>
+                                <span className="text-6xl font-black text-white">{freeSpins}</span>
                                 <div className="w-full h-px bg-white/20 my-2"></div>
-                                <div className="flex flex-col items-center">
-                                    <span className="text-xs text-yellow-500 font-bold uppercase">Mult. Global</span>
-                                    <div className="text-4xl font-black text-yellow-400 drop-shadow-[0_0_10px_orange]">x{globalFreeSpinMult}</div>
-                                </div>
+                                <span className="text-amber-400 font-bold">MULT GLOBAL: x{globalFreeSpinMult}</span>
                             </>
                         ) : (
                             <>
-                                <div className="text-xs text-gray-500 uppercase tracking-widest mb-2 font-bold">Multiplicador Ronda</div>
-                                <div className={cn(
-                                    "text-5xl font-black transition-all",
-                                    totalMult > 0 ? "text-yellow-400 scale-110 drop-shadow-[0_0_30px_orange]" : "text-gray-700"
-                                )}>
+                                <span className="text-gray-500 text-sm font-bold">MULTIPLICADOR</span>
+                                <span className={cn("text-5xl font-black", totalMult > 0 ? "text-amber-400" : "text-gray-600")}>
                                     x{totalMult}
-                                </div>
+                                </span>
                             </>
                         )}
-                    </motion.div>
+                    </div>
 
                     {/* ANTE BET */}
-                    <button
-                        onClick={() => gameState === 'IDLE' && setAnteBet(!anteBet)}
-                        className={cn(
-                            "relative p-4 rounded-2xl border-2 transition-all duration-300 group overflow-hidden",
-                            anteBet ? "bg-amber-900/40 border-amber-500" : "bg-white/5 border-white/10 hover:border-white/20"
-                        )}
+                    <button 
+                         onClick={() => gameState === 'IDLE' && setAnteBet(!anteBet)}
+                         className={cn(
+                             "relative p-4 rounded-xl border-2 transition-all flex items-center justify-between group",
+                             anteBet ? "bg-amber-900/30 border-amber-500" : "bg-white/5 border-white/10 hover:border-white/20"
+                         )}
                     >
-                        <div className="absolute -right-6 -bottom-6 opacity-20 group-hover:opacity-40 transition-opacity">
-                            <Flame size={80} className={anteBet ? "text-amber-500" : "text-gray-500"} />
+                        <div className="flex flex-col items-start">
+                            <span className="font-bold text-white text-sm">DOBLE PROBABILIDAD</span>
+                            <span className="text-xs text-gray-400">Mas Scatters (+25% Coste)</span>
                         </div>
-                        <div className="relative z-10 text-left">
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className={cn("w-3 h-3 rounded-full shadow-[0_0_10px_currentColor]", anteBet ? "bg-green-500 text-green-500" : "bg-gray-600 text-gray-600")}></span>
-                                <span className="font-bold text-sm uppercase text-white">Doble Probabilidad</span>
-                            </div>
-                            <p className="text-xs text-gray-400 leading-relaxed">
-                                Aumenta la apuesta un <span className="text-amber-500 font-bold">25%</span> para duplicar la chance de encontrar a Zeus.
-                            </p>
+                        <div className={cn("w-6 h-6 rounded-full border flex items-center justify-center", anteBet ? "bg-green-500 border-green-500" : "border-gray-500")}>
+                            {anteBet && <Zap size={14} className="text-white fill-white" />}
                         </div>
                     </button>
 
                     {/* BET SELECTOR */}
-                    <div className="bg-[#1a1625] p-4 rounded-2xl border border-white/10">
-                        <span className="text-xs text-gray-500 font-bold uppercase mb-3 block">Apuesta</span>
-                        <div className="grid grid-cols-3 gap-2">
-                            {bets.map(b => (
-                                <button
-                                    key={b}
-                                    onClick={() => setBet(b)}
-                                    disabled={gameState !== 'IDLE'}
-                                    className={cn(
-                                        "py-2 px-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all border",
-                                        bet === b
-                                            ? "bg-amber-600 border-amber-400 text-white shadow-[0_0_10px_orange]"
-                                            : "bg-white/5 border-transparent text-gray-400 hover:bg-white/10"
-                                    )}
-                                >
-                                    {b >= 1000000 ? (b / 1000000) + 'M' : (b / 1000) + 'k'}
-                                </button>
-                            ))}
-                        </div>
+                    <div className="grid grid-cols-3 gap-2">
+                        {bets.map(b => (
+                            <button
+                                key={b}
+                                onClick={() => setBet(b)}
+                                disabled={gameState !== 'IDLE' && !isFreeSpinMode}
+                                className={cn(
+                                    "py-2 rounded-lg text-xs font-bold border transition-colors",
+                                    bet === b ? "bg-amber-600 border-amber-400 text-white" : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
+                                )}
+                            >
+                                {b >= 1000000 ? (b/1000000)+'M' : (b/1000)+'k'}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
                 {/* GAME GRID (CENTER) */}
-                <div className="flex-1 relative order-1 lg:order-2">
-                    <div className="relative aspect-[6/5] w-full bg-[#16121d] rounded-2xl border-[3px] border-amber-700/30 shadow-2xl overflow-hidden p-2">
-                        {/* Grid Inner Border */}
-                        <div className="absolute inset-0 border border-amber-500/10 rounded-xl pointer-events-none z-20"></div>
-
-                        <div className="grid grid-cols-6 gap-1.5 h-full relative z-10">
+                <div className="flex-1 relative order-1 lg:order-2 select-none">
+                    <div className="relative aspect-[6/5] w-full bg-[#16121d] rounded-xl border-[4px] border-amber-800/50 shadow-2xl p-2 overflow-hidden">
+                        
+                        {/* WINNING LINES SVG OVERLAY */}
+                        <svg className="absolute inset-0 w-full h-full z-20 pointer-events-none">
                             <AnimatePresence>
-                                {grid.map((col, cIndex) => (
-                                    <div key={`col-${cIndex}`} className="flex flex-col gap-1.5 h-full">
+                                {winningGroups.map((group, i) => (
+                                    <motion.g key={i}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                    >
+                                        <path 
+                                            d={`M ${ group.points.map(p => `${p.x} ${p.y}`).join(' L ') } `}
+                                            fill="none"
+                                            stroke={group.color}
+                                            strokeWidth="1.5"
+                                            strokeOpacity="0.8"
+                                            filter="url(#glow)"
+                                        />
+                                        {group.points.map((p, j) => (
+                                            <circle key={j} cx={p.x} cy={p.y} r="1.5" fill={group.color} />
+                                        ))}
+                                    </motion.g>
+                                ))}
+                            </AnimatePresence>
+                            <defs>
+                                <filter id="glow">
+                                    <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                                    <feMerge>
+                                        <feMergeNode in="coloredBlur"/>
+                                        <feMergeNode in="SourceGraphic"/>
+                                    </feMerge>
+                                </filter>
+                            </defs>
+                        </svg>
+
+                        <div className="grid grid-cols-6 gap-1 h-full relative z-10 perspective-1000">
+                            {grid.map((col, cIndex) => (
+                                <div key={cIndex} className="flex flex-col gap-1 h-full">
+                                    <AnimatePresence mode='popLayout'>
                                         {col.map((cell) => {
                                             const asset = SYMBOLS[cell.symbol];
-                                            const isScatter = cell.symbol === 'scatter';
                                             const isMult = cell.symbol === 'mult';
-                                            const orb = isMult ? MULTIPLIER_ORBS.find(o => o.value === cell.multValue) : null;
+                                            const isScatter = cell.symbol === 'scatter';
+                                            const isWin = winningGroups.some(g => g.points.some(p => Math.abs(p.x - (cIndex+0.5)*(100/GRID_COLS)) < 1 && Math.abs(p.y - (cell.rowIndex+0.5)*(100/GRID_ROWS)) < 1));
 
-                                            // Handle Variants
                                             return (
                                                 <motion.div
-                                                    layoutId={cell.id}
+                                                    layout
                                                     key={cell.id}
-                                                    initial={{ y: -600, opacity: 0, scale: 0.5 }}
-                                                    animate={{ y: 0, opacity: 1, scale: 1 }}
-                                                    exit={{ scale: 0, opacity: 0, filter: 'brightness(3)' }}
-                                                    transition={{
-                                                        type: "spring",
-                                                        stiffness: 250,
-                                                        damping: 25,
-                                                        mass: 1
+                                                    initial={{ y: -500, opacity: 0, scale: 0.5 }}
+                                                    animate={{ 
+                                                        y: 0, 
+                                                        opacity: 1, 
+                                                        scale: isWin ? 1.1 : 1,
+                                                        filter: isWin ? 'brightness(1.5)' : 'none',
+                                                        zIndex: isWin ? 50 : 0
                                                     }}
+                                                    exit={{ scale: 0, opacity: 0, filter: 'brightness(3)' }}
+                                                    transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
                                                     className={cn(
-                                                        "flex-1 rounded-lg flex items-center justify-center relative group overflow-visible",
-                                                        isMult ? "" : "bg-[#1f1a29]"
+                                                        "flex-1 rounded-lg flex items-center justify-center relative",
+                                                        isMult ? "" : "bg-[#1f1a29]" // Dark cell bg
                                                     )}
                                                 >
-                                                    {/* SYMBOL CONTENT */}
-                                                    {isScatter ? (
-                                                        <div className="text-4xl sm:text-5xl animate-pulse drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] filter brightness-125">
-                                                            {ZEUS_HEAD}
-                                                        </div>
-                                                    ) : isMult ? (
-                                                        <div className={cn(
-                                                            "w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center border-2 border-white/40",
-                                                            orb?.color, orb?.glow
-                                                        )}>
-                                                            <span className="font-black text-white text-xs sm:text-sm drop-shadow-md">
-                                                                {cell.multValue}x
-                                                            </span>
-                                                        </div>
-                                                    ) : (
-                                                        <div className={cn(
-                                                            "transition-all duration-300 group-hover:scale-110",
-                                                            asset?.color,
-                                                            `drop-shadow-[0_0_8px_${asset?.shadow}]`
-                                                        )}>
-                                                            {asset && <asset.icon size={36} strokeWidth={2.5} />}
+                                                    {isScatter && <span className="text-4xl animate-bounce">{ZEUS_HEAD}</span>}
+                                                    {isMult && (
+                                                       <div className={cn(
+                                                           "w-10 h-10 rounded-full flex items-center justify-center border-2 border-white font-black text-xs text-white shadow-lg",
+                                                           MULTIPLIER_ORBS.find(o => o.value === cell.multValue)?.color
+                                                       )}>
+                                                           {cell.multValue}x
+                                                       </div>
+                                                    )}
+                                                    {asset && (
+                                                        <div className={cn("transition-transform", asset.color)}>
+                                                            <asset.icon 
+                                                                size={32} 
+                                                                strokeWidth={isWin ? 3 : 2} 
+                                                                className={cn(isWin ? "animate-pulse drop-shadow-[0_0_10px_currentColor]" : "")}
+                                                            />
                                                         </div>
                                                     )}
                                                 </motion.div>
                                             );
                                         })}
-                                    </div>
-                                ))}
-                            </AnimatePresence>
+                                    </AnimatePresence>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -531,24 +597,20 @@ export function GatesOfClicker() {
                     onClick={spin}
                     disabled={gameState !== 'IDLE' && !isFreeSpinMode}
                     className={cn(
-                        "w-full h-20 rounded-full font-black text-2xl tracking-widest uppercase transition-all shadow-xl active:scale-95 flex items-center justify-center gap-4 border-b-4",
-                        gameState !== 'IDLE'
-                            ? "bg-gray-800 text-gray-500 border-gray-950 cursor-not-allowed"
-                            : "bg-gradient-to-b from-green-500 to-emerald-700 border-emerald-900 text-white hover:brightness-110 shadow-[0_0_30px_rgba(16,185,129,0.4)]"
+                        "w-full h-16 rounded-full font-black text-xl tracking-widest uppercase shadow-xl flex items-center justify-center gap-2",
+                        gameState !== 'IDLE' 
+                            ? "bg-gray-800 text-gray-500 cursor-not-allowed" 
+                            : "bg-gradient-to-b from-green-500 to-green-700 text-white hover:brightness-110 active:scale-95"
                     )}
                 >
                     {isFreeSpinMode ? (
-                        <>
-                            <div className="w-6 h-6 border-b-2 border-l-2 border-white rounded-full animate-spin"></div>
-                            AUTO ({freeSpins})
-                        </>
+                         <span>AUTO-SPIN ({freeSpins})</span>
                     ) : (
-                        gameState === 'IDLE' ? "GIRAR" : "..."
+                        gameState === 'IDLE' ? "GIRAR" : "JUGANDO..."
                     )}
                 </button>
             </div>
         </div>
     );
 }
-
-// TODO: Move types to separate file if file grows too large.
+```
