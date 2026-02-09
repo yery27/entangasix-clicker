@@ -12,4 +12,4 @@ const versionData = {
 
 fs.writeFileSync(versionPath, JSON.stringify(versionData, null, 2));
 
-console.log('✅ Version file generated:', versionData);
+console.log('✅ Version file generated (FORCE UPDATE):', versionData);
