@@ -7,7 +7,7 @@ import {
     UserX, UserCheck, RefreshCw, Save
 } from 'lucide-react';
 import { formatCurrency } from '../../lib/utils';
-import { Navigate } from 'react-router-dom';
+
 
 interface PlayerProfile {
     id: string;
