@@ -366,7 +366,7 @@ export const useGameStore = create<GameState>()(
                         return;
                     }
 
-                    const MIGRATION_VERSION = 1; // INCREMENT TO WIPE EVERYONE
+                    const MIGRATION_VERSION = 2; // INCREMENT TO WIPE EVERYONE (V2: Include GameStats)
 
                     if (profile) {
                         // Load Game Stats
@@ -386,7 +386,8 @@ export const useGameStore = create<GameState>()(
                                 autoClickPower: 0,
                                 inventory: {},
                                 cosmetics: { owned: [], equipped: {} },
-                                gameStats: { ...gStats, _migration_version: MIGRATION_VERSION }, // Keep stats object but mark migrated
+                                // WIPE GAME STATS TOO (Previous version kept them)
+                                gameStats: { _migration_version: MIGRATION_VERSION },
                                 timeStats: {
                                     weekly: { id: '', score: 0 },
                                     monthly: { id: '', score: 0 },
