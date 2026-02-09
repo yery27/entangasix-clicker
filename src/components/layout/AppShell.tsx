@@ -106,6 +106,7 @@ export function AppShell() {
                         </Link>
                         <div className="overflow-hidden">
                             <p className="text-sm font-medium truncate">{user?.username}</p>
+                            <p className="text-[10px] text-gray-500 uppercase">{user?.role || 'User'}</p>
                         </div>
                         <button onClick={logout} className="ml-auto text-gray-500 hover:text-red-400">
                             <LogOut size={16} />
