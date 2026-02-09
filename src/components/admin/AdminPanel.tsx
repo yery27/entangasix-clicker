@@ -3,9 +3,9 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { toast } from 'sonner';
 import {
-    Shield, Ban, Search, Coins, Trash2,
-    UserCheck, RefreshCw, Save, Activity, Users, DollarSign, Lock,
-    Power, History
+    Shield, Ban, Search, Trash2,
+    UserCheck, RefreshCw, Save, Users, DollarSign,
+    Power
 } from 'lucide-react';
 import { formatCurrency } from '../../lib/utils';
 
@@ -192,8 +192,8 @@ export default function AdminPanel() {
                             onClick={toggleMaintenance}
                             disabled={maintenanceLoading}
                             className={`flex items-center gap-3 px-4 py-2 rounded-xl font-bold transition-all ${maintenanceMode
-                                    ? 'bg-red-500/20 text-red-400 border border-red-500/50 animate-pulse'
-                                    : 'bg-green-500/20 text-green-400 border border-green-500/50'
+                                ? 'bg-red-500/20 text-red-400 border border-red-500/50 animate-pulse'
+                                : 'bg-green-500/20 text-green-400 border border-green-500/50'
                                 }`}
                         >
                             <Power size={20} />
@@ -340,8 +340,8 @@ export default function AdminPanel() {
                                                 <button
                                                     onClick={() => toggleBan(p.id, p.is_banned, p.ban_reason)}
                                                     className={`p-2 rounded-lg transition-colors ${p.is_banned
-                                                            ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20'
-                                                            : 'bg-red-500/10 text-red-500 hover:bg-red-500/20'
+                                                        ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20'
+                                                        : 'bg-red-500/10 text-red-500 hover:bg-red-500/20'
                                                         }`}
                                                     title={p.is_banned ? "Desbanear" : "Banear"}
                                                 >
