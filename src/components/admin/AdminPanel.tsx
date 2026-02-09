@@ -29,7 +29,23 @@ export default function AdminPanel() {
 
     // Security Check
     if (user?.role !== 'admin') {
-        return <Navigate to="/" replace />;
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f1523] text-white gap-4">
+                <Shield size={64} className="text-red-500" />
+                <h1 className="text-3xl font-black">ACCESO DENEGADO</h1>
+                <p className="text-gray-400">No tienes permisos de Administrador.</p>
+                <div className="bg-black/50 p-4 rounded-xl border border-white/10 font-mono text-sm">
+                    <p>Tu ID: <span className="text-blue-400">{user?.id}</span></p>
+                    <p>Tu Rol actual: <span className="text-yellow-400">{user?.role || 'null'}</span></p>
+                </div>
+                <button
+                    onClick={() => window.location.href = '/'}
+                    className="mt-4 px-6 py-2 bg-gray-700 rounded-lg hover:bg-gray-600"
+                >
+                    Volver al Inicio
+                </button>
+            </div>
+        );
     }
 
     const fetchPlayers = async () => {

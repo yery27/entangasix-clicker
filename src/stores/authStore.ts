@@ -101,37 +101,40 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const { data: { session } } = await supabase.auth.getSession();
 
         if (session?.user) {
-            const { data: profile } = await supabase
+            const { data: profile, error } = await supabase
                 .from('profiles')
-                .select('username, avatar_url, role, is_banned') // Fetch new fields
+                .select('username, avatar_url, role, is_banned')
                 .eq('id', session.user.id)
                 .single();
 
-            if (!profile) {
-                console.warn("Profile missing for user, logging out.");
-                await supabase.auth.signOut();
-                set({ user: null, isAuthenticated: false });
-            } else {
-                if (profile.is_banned) {
-                    await supabase.auth.signOut();
-                    toast.error("🚫 TU CUENTA HA SIDO BANEADA PERMANENTEMENTE.");
-                    set({ user: null, isAuthenticated: false });
-                    set({ loading: false }); // Ensure loading is set to false even if banned
-                    return;
-                }
-
-                set({
-                    user: {
-                        id: session.user.id,
-                        email: session.user.email,
-                        username: profile.username || session.user.user_metadata.username || 'User',
-                        avatar_url: profile.avatar_url || session.user.user_metadata.avatar_url,
-                        role: profile.role || 'user',
-                        is_banned: profile.is_banned || false,
-                    },
-                    isAuthenticated: true
-                });
+            if (error) {
+                console.error("Error fetching profile:", error);
+                // toast.error(`Error perfil: ${error.message}`);
             }
+
+            // Fallback Use if profile missing
+            const role = profile?.role || 'user';
+            const isBanned = profile?.is_banned || false;
+
+            if (isBanned) {
+                await supabase.auth.signOut();
+                toast.error("🚫 CUENTA BANEADA");
+                set({ user: null, isAuthenticated: false });
+                set({ loading: false });
+                return;
+            }
+
+            set({
+                user: {
+                    id: session.user.id,
+                    email: session.user.email!,
+                    username: profile?.username || session.user.user_metadata.username || session.user.email?.split('@')[0] || 'User',
+                    avatar_url: profile?.avatar_url || session.user.user_metadata.avatar_url || '',
+                    role: role,
+                    is_banned: isBanned,
+                },
+                isAuthenticated: true
+            });
         } else {
             set({ user: null, isAuthenticated: false });
         }
