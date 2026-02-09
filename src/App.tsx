@@ -13,6 +13,7 @@ import Profile from './pages/Profile';
 import { useAuthStore } from './stores/authStore';
 import { useGameStore } from './stores/gameStore';
 import GlobalEvents from './components/GlobalEvents';
+import AdminPanel from './components/admin/AdminPanel';
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -143,6 +144,7 @@ export default function App() {
           <Route path="leaderboard" element={<Leaderboard />} />
           <Route path="game-leaderboard" element={<GameLeaderboard />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="admin" element={<AdminPanel />} />
         </Route>
       </Routes>
     </BrowserRouter>

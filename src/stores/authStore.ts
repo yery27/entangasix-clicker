@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { toast } from 'sonner';
 
 export interface User {
     id: string;
@@ -7,6 +8,8 @@ export interface User {
     username: string;
     avatar_url?: string;
     full_name?: string;
+    role?: 'user' | 'admin';
+    is_banned?: boolean;
 }
 
 interface AuthState {
@@ -79,7 +82,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     id: data.user.id,
                     email: data.user.email,
                     username,
-                    avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`
+                    avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
+                    role: 'user', // Default role for new users
+                    is_banned: false, // Default ban status for new users
                 },
                 isAuthenticated: true
             });
@@ -98,7 +103,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (session?.user) {
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('*')
+                .select('username, avatar_url, role, is_banned') // Fetch new fields
                 .eq('id', session.user.id)
                 .single();
 
@@ -107,12 +112,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 await supabase.auth.signOut();
                 set({ user: null, isAuthenticated: false });
             } else {
+                if (profile.is_banned) {
+                    await supabase.auth.signOut();
+                    toast.error("🚫 TU CUENTA HA SIDO BANEADA PERMANENTEMENTE.");
+                    set({ user: null, isAuthenticated: false });
+                    set({ loading: false }); // Ensure loading is set to false even if banned
+                    return;
+                }
+
                 set({
                     user: {
                         id: session.user.id,
                         email: session.user.email,
                         username: profile.username || session.user.user_metadata.username || 'User',
                         avatar_url: profile.avatar_url || session.user.user_metadata.avatar_url,
+                        role: profile.role || 'user',
+                        is_banned: profile.is_banned || false,
                     },
                     isAuthenticated: true
                 });
