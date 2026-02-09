@@ -8,6 +8,7 @@ import { Crash } from '../components/casino/Crash';
 import { Plinko } from '../components/casino/Plinko';
 import { Scratch75 } from '../components/casino/Scratch75';
 import { LiveRoulette } from '../components/casino/LiveRoulette';
+import { GatesOfClicker } from '../components/casino/GatesOfClicker';
 
 import { cn, formatCurrency } from '../lib/utils';
 import { useGameStore } from '../stores/gameStore';
@@ -23,6 +24,8 @@ export default function Casino() {
         { id: 'live_roulette', label: 'Ruleta en VIVO', color: 'from-red-600 to-pink-600', icon: '🔴', desc: 'Juega con otros en tiempo real' },
         { id: 'blackjack', label: 'VIP Blackjack', color: 'from-red-600 to-orange-600', icon: '🃏', desc: 'Vence al croupier' },
         { id: 'scratch75', label: '7 y Media', color: 'from-yellow-400 to-green-600', icon: '🎟️', desc: 'Rasca y gana hasta 100x' },
+
+        { id: 'gates', label: 'Gates of Clicker', color: 'from-yellow-400 to-purple-600', icon: '⚡', desc: '¡Multiplicadores hasta 500x!' },
 
         { id: 'mines', label: 'Mines', color: 'from-yellow-400 to-orange-500', icon: '💣', desc: 'Evita las minas', comingSoon: false },
         { id: 'crash', label: 'Crash', color: 'from-pink-500 to-rose-500', icon: '🚀', desc: 'Retírate antes del boom', comingSoon: false },
@@ -127,6 +130,7 @@ export default function Casino() {
                             className="w-full h-full"
                         >
                             {activeGame === 'slots' && <Slots />}
+                            {activeGame === 'gates' && <GatesOfClicker />}
                             {activeGame === 'roulette' && <Roulette />}
                             {activeGame === 'live_roulette' && <LiveRoulette />}
                             {activeGame === 'blackjack' && <Blackjack />}
