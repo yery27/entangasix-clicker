@@ -55,7 +55,7 @@ const SYMBOLS: Record<string, SymbolType> = {
     'relic_crown': { id: 'relic_crown', icon: Crown, color: 'text-amber-400', shadow: 'amber', isHighPay: true, payouts: [20, 50, 200] },     // "Click Crown"
 };
 
-const SYMBOL_KEYS = Object.keys(SYMBOLS);
+
 
 // Special Symbols
 // Using Emoji for now but styled heavily
