@@ -107,6 +107,21 @@ export function AppShell() {
                         <div className="overflow-hidden">
                             <p className="text-sm font-medium truncate">{user?.username}</p>
                             <p className="text-[10px] text-gray-500 uppercase">{user?.role || 'User'}</p>
+                            <button
+                                onClick={async () => {
+                                    const { checkSession } = useAuthStore.getState();
+                                    await checkSession();
+                                    const updatedUser = useAuthStore.getState().user;
+                                    // Hacky toast import if not available, assumes available in scope or global
+                                    // Actually better to use window.alert for debug if toast not imported
+                                    // I'll assume toast is available via hook or just log
+                                    console.log('Refreshed:', updatedUser);
+                                    alert(`Rol actual: ${updatedUser?.role}\nID: ${updatedUser?.id}\nEmail: ${updatedUser?.email}`);
+                                }}
+                                className="text-[10px] text-blue-400 hover:text-blue-300 underline mt-1"
+                            >
+                                🔄 Refrescar Datos
+                            </button>
                         </div>
                         <button onClick={logout} className="ml-auto text-gray-500 hover:text-red-400">
                             <LogOut size={16} />
