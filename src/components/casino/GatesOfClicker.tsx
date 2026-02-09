@@ -4,7 +4,7 @@ import { useGameStore } from '../../stores/gameStore';
 import { toast } from 'sonner';
 import { cn, formatCurrency } from '../../lib/utils';
 import {
-    Zap, Flame, MousePointer2, Crown,
+    Zap, MousePointer2, Crown,
     Gem, Hexagon, Triangle, Square, Circle
 } from 'lucide-react';
 import { playSound } from '../../lib/soundManager';
@@ -93,7 +93,6 @@ export function GatesOfClicker() {
     const [roundWin, setRoundWin] = useState(0);
     const [totalMult, setTotalMult] = useState(0);
     const [currentWinText, setCurrentWinText] = useState<string | null>(null);
-    const [winningCells, setWinningCells] = useState<{ c: number, r: number, color: string }[]>([]); // For Lines
     const [winningGroups, setWinningGroups] = useState<{ points: { x: number, y: number }[], color: string }[]>([]); // SVG Lines
 
     // Free Spins
@@ -124,24 +123,6 @@ export function GatesOfClicker() {
         timeoutsRef.current.push(id);
         return id;
     };
-
-    // --- EFFECT: FREE SPINS LOOP ---
-    // Instead of recursion, we watch the state logic
-    useEffect(() => {
-        if (isFreeSpinMode && gameState === 'IDLE' && freeSpins > 0 && triggerNextSpin.current) {
-            triggerNextSpin.current = false;
-            const timer = setTimeout(() => {
-                setFreeSpins(prev => prev - 1);
-                spin();
-            }, 1000);
-            timeoutsRef.current.push(timer);
-        } else if (isFreeSpinMode && gameState === 'IDLE' && freeSpins <= 0 && !triggerNextSpin.current) {
-            // End of Bonus
-            setIsFreeSpinMode(false);
-            setGlobalFreeSpinMult(0);
-            toast.info(`Fin del Modo Dios. Ganancia: ${formatCurrency(totalFreeSpinWin)}`);
-        }
-    }, [isFreeSpinMode, gameState, freeSpins, spin, totalFreeSpinWin]);
 
     // --- LOGIC ---
 
@@ -203,7 +184,6 @@ export function GatesOfClicker() {
         setGameState('SPINNING');
         setTotalMult(0);
         setCurrentWinText(null);
-        setWinningCells([]);
         setWinningGroups([]);
         clearAllTimeouts(); // Clear any pending timeouts from previous rounds
 
@@ -226,6 +206,25 @@ export function GatesOfClicker() {
         safeSetTimeout(() => processGrid(newGrid), 400);
 
     }, [bet, anteBet, coins, gameState, isFreeSpinMode, removeCoins, setTotalFreeSpinWin, setGlobalFreeSpinMult, setRoundWin]);
+
+
+    // --- EFFECT: FREE SPINS LOOP ---
+    // Moved here to be after 'spin' declaration
+    useEffect(() => {
+        if (isFreeSpinMode && gameState === 'IDLE' && freeSpins > 0 && triggerNextSpin.current) {
+            triggerNextSpin.current = false;
+            const timer = setTimeout(() => {
+                setFreeSpins(prev => prev - 1);
+                spin();
+            }, 1000);
+            timeoutsRef.current.push(timer);
+        } else if (isFreeSpinMode && gameState === 'IDLE' && freeSpins <= 0 && !triggerNextSpin.current) {
+            // End of Bonus
+            setIsFreeSpinMode(false);
+            setGlobalFreeSpinMult(0);
+            toast.info(`Fin del Modo Dios. Ganancia: ${formatCurrency(totalFreeSpinWin)}`);
+        }
+    }, [isFreeSpinMode, gameState, freeSpins, spin, totalFreeSpinWin]);
 
 
     const processGrid = async (currentGrid: GridCell[][]) => {
