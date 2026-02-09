@@ -52,9 +52,24 @@ export default function App() {
 
     // Listen for maintenance changes
     const channel = supabase.channel('maintenance_check')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'server_settings', filter: "key=eq.maintenance_mode" }, (payload) => {
-        setMaintenance(payload.new.value === true);
-      })
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'server_settings',
+          filter: "key=eq.maintenance_mode"
+        },
+        (payload: any) => {
+          // Payload structure depends on REPLICA IDENTITY (usually 'new' contains the row)
+          const newValue = payload.new?.value === true;
+          setMaintenance(newValue);
+
+          if (newValue) {
+            toast.error('⚠️ MANTENIMIENTO ACTIVADO');
+          }
+        }
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
