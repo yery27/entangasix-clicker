@@ -95,9 +95,9 @@ export default function App() {
     return () => clearInterval(interval);
   }, [tick]);
 
+  const [isUpdating, setIsUpdating] = React.useState(false);
 
-
-  // Forced Update Check
+  // Forced Update Check ( aggressive: 15 seconds )
   useEffect(() => {
     const checkVersion = async () => {
       try {
@@ -108,74 +108,79 @@ export default function App() {
 
           if (localTimestamp && data.timestamp > localTimestamp) {
             console.log("New version detected!", data);
-            // Optional: Show toast or force refresh
-            // setIsUpdating(true); 
+            setIsUpdating(true);
+            setTimeout(() => window.location.reload(), 2000);
           }
           localStorage.setItem('app_version_timestamp', data.timestamp);
-          const [isUpdating, setIsUpdating] = React.useState(false);
-
-          // Forced Update Check ( aggressive: 15 seconds )
-          useEffect(() => {
-            const checkVersion = async () => {
-              try {
-                const res = await fetch('/version.json?t=' + Date.now());
-                if (res.ok) {
-                  const data = await res.json();
-                  const localTimestamp = localStorage.getItem('app_version_timestamp');
-
-                  if (localTimestamp && data.timestamp > localTimestamp) {
-                    console.log("New version detected!", data);
-                    setIsUpdating(true);
-                    setTimeout(() => window.location.reload(), 2000);
-                  }
-                  localStorage.setItem('app_version_timestamp', data.timestamp);
-                }
-              } catch (e) {
-                // quiet fail
-              }
-            };
-            checkVersion();
-            const interval = setInterval(checkVersion, 15000); // Every 15 seconds
-            return () => clearInterval(interval);
-          }, []);
-
-          if (isUpdating) {
-            return (
-              <div className="fixed inset-0 bg-black z-[9999] flex flex-col items-center justify-center text-white">
-                <Loader2 size={64} className="text-cyber-DEFAULT animate-spin mb-4" />
-                <h1 className="text-4xl font-black animate-pulse text-center">ACTUALIZANDO SISTEMA...</h1>
-                <p className="text-gray-400 mt-2">Aplicando parche divino v{Date.now().toString().slice(-4)}</p>
-              </div>
-            );
-          }
-
-          return (
-            <BrowserRouter>
-              <Toaster position="top-center" theme="dark" richColors />
-              <SpeedInsights />
-              <Routes>
-                <Route path="/login" element={
-                  isAuthenticated ? <Navigate to="/" replace /> : <Login />
-                } />
-                <Route path="/register" element={
-                  isAuthenticated ? <Navigate to="/" replace /> : <Register />
-                } />
-
-                <Route path="/" element={
-                  <ProtectedRoute>
-                    <GlobalEvents />
-                    <AppShell />
-                  </ProtectedRoute>
-                }>
-                  <Route index element={<Home />} />
-                  <Route path="shop" element={<Shop />} />
-                  <Route path="casino" element={<Casino />} />
-                  <Route path="leaderboard" element={<Leaderboard />} />
-                  <Route path="leaderboard/game/:gameId" element={<GameLeaderboard />} />
-                  <Route path="profile" element={<Profile />} />
-                  <Route path="admin" element={<AdminPanel />} />
-                </Route>
-              </Routes>
-            </BrowserRouter>
-          );
         }
+      } catch (e) {
+        // quiet fail
+      }
+    };
+
+    checkVersion();
+    const interval = setInterval(checkVersion, 15000); // Every 15 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  if (maintenance) {
+    // Allow admins to bypass
+    const isAdmin = user?.role === 'admin' || user?.email === 'garciamartinezyeray@gmail.com';
+    if (!isAdmin) {
+      return (
+        <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white p-4 text-center">
+          <h1 className="text-6xl font-black text-red-600 mb-4 animate-pulse">MANTENIMIENTO</h1>
+          <p className="text-xl text-gray-400 max-w-md">
+            El servidor está siendo actualizado con mejoras de nivel Divino.
+            <br />Vuelve pronto.
+          </p>
+          {user && (
+            <button onClick={() => useAuthStore.getState().logout()} className="mt-8 text-sm text-gray-600 underline">
+              Cerrar Sesión (Admin Login)
+            </button>
+          )}
+        </div>
+      );
+    }
+  }
+
+  if (isUpdating) {
+    return (
+      <div className="fixed inset-0 bg-black z-[9999] flex flex-col items-center justify-center text-white">
+        <Loader2 size={64} className="text-cyber-DEFAULT animate-spin mb-4" />
+        <h1 className="text-4xl font-black animate-pulse text-center">ACTUALIZANDO SISTEMA...</h1>
+        <p className="text-gray-400 mt-2">Aplicando parche divino v{Date.now().toString().slice(-4)}</p>
+      </div>
+    );
+  }
+
+  return (
+    <BrowserRouter>
+      <Toaster position="top-center" theme="dark" richColors />
+      <SpeedInsights />
+      <Routes>
+        <Route path="/login" element={
+          isAuthenticated ? <Navigate to="/" replace /> : <Login />
+        } />
+        <Route path="/register" element={
+          isAuthenticated ? <Navigate to="/" replace /> : <Register />
+        } />
+
+        <Route path="/" element={
+          <ProtectedRoute>
+            <GlobalEvents />
+            <AppShell />
+          </ProtectedRoute>
+        }>
+          <Route index element={<Home />} />
+          <Route path="shop" element={<Shop />} />
+          <Route path="casino" element={<Casino />} />
+          <Route path="leaderboard" element={<Leaderboard />} />
+          <Route path="leaderboard/game/:gameId" element={<GameLeaderboard />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="admin" element={<AdminPanel />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
