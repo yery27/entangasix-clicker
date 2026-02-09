@@ -4,7 +4,7 @@ import { useGameStore } from '../../stores/gameStore';
 import { toast } from 'sonner';
 import { cn, formatCurrency } from '../../lib/utils';
 import {
-    RefreshCw, Zap, Flame, MousePointer2, Crown,
+    Zap, Flame, MousePointer2, Crown,
     Gem, Hexagon, Triangle, Square, Circle
 } from 'lucide-react';
 import { playSound } from '../../lib/soundManager';
@@ -58,7 +58,6 @@ const SYMBOLS: Record<string, SymbolType> = {
 const SYMBOL_KEYS = Object.keys(SYMBOLS);
 
 // Special Symbols
-const SCATTER = { id: 'scatter', icon: '⚡', color: 'text-white drop-shadow-[0_0_15px_rgba(255,255,255,1)]' }; // ZEUS HEAD (Emoji or Image)
 // Using Emoji for now but styled heavily
 const ZEUS_HEAD = '🌩️';
 
