@@ -1,145 +1,160 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../../stores/gameStore';
 import { toast } from 'sonner';
 import { cn, formatCurrency } from '../../lib/utils';
-import { RefreshCw, Zap, Flame } from 'lucide-react';
+import {
+    RefreshCw, Zap, Flame, MousePointer2, Crown,
+    Gem, Hexagon, Triangle, Square, Circle
+} from 'lucide-react';
 import { playSound } from '../../lib/soundManager';
 
-// --- GAME CONFIGURATION ---
+// --- GAME CONFIGURATION V3.0 GOD MODE ---
 const GRID_ROWS = 5;
 const GRID_COLS = 6;
-const MIN_MATCH = 8; // Scatter pays: 8+ anywhere
-const SCATTER_TRIGGER = 4; // 4 Scatters for Free params
+const MIN_MATCH = 8;
+const SCATTER_TRIGGER = 4;
 
 // Animation Timings (ms)
-const EXPLOSION_DURATION = 0.5;
-const DELAY_BETWEEN_CASCADES = 800;
+const EXPLOSION_DURATION = 0.6;
+const DELAY_BETWEEN_CASCADES = 900; // Slower for dramatic effect
+
+// THEME CONSTANTS
+const GOD_THEME = {
+    primary: 'from-amber-500 via-yellow-400 to-amber-600',
+    glow: 'shadow-[0_0_50px_rgba(251,191,36,0.5)]',
+    text: 'text-amber-400',
+    bg: 'bg-[#0f0b15]' // Dark void
+};
 
 // --- SYMBOLS & PAYTABLE ---
-// Base payout is multiplier of BET. Logic: (8-9), (10-11), (12-30)
-// Example: { id: 'gem_red', payout: [0.5, 1.5, 10] }
-// NOTE: Gates uses absolute values usually, here we multiplier by bet.
+// Adjusted Payouts for High Volatility
+// Low Pay: Shapes
+// High Pay: Golden Relics
 
 type SymbolType = {
     id: string;
-    icon: string;
+    icon: React.ElementType; // Lucide Icon
     color: string;
+    shadow: string; // Neon glow color
     isHighPay: boolean;
-    payouts: [number, number, number]; // [8-9, 10-11, 12+]
+    payouts: [number, number, number]; // [8-9, 10-11, 12+] Multipliers
 };
 
 const SYMBOLS: Record<string, SymbolType> = {
-    'gem_blue': { id: 'gem_blue', icon: '🔷', color: 'text-blue-400', isHighPay: false, payouts: [0.25, 0.75, 2] },
-    'gem_green': { id: 'gem_green', icon: '🟢', color: 'text-green-400', isHighPay: false, payouts: [0.4, 0.9, 4] },
-    'gem_yellow': { id: 'gem_yellow', icon: '🔶', color: 'text-yellow-400', isHighPay: false, payouts: [0.5, 1, 5] },
-    'gem_purple': { id: 'gem_purple', icon: '🟣', color: 'text-purple-400', isHighPay: false, payouts: [0.8, 1.2, 8] },
-    'gem_red': { id: 'gem_red', icon: '❤️', color: 'text-red-500', isHighPay: false, payouts: [1, 1.5, 10] },
+    // LOW PAY
+    'shape_circle': { id: 'shape_circle', icon: Circle, color: 'text-blue-500', shadow: 'blue', isHighPay: false, payouts: [0.25, 0.75, 2] },
+    'shape_square': { id: 'shape_square', icon: Square, color: 'text-green-500', shadow: 'green', isHighPay: false, payouts: [0.4, 0.9, 4] },
+    'shape_triangle': { id: 'shape_triangle', icon: Triangle, color: 'text-purple-500', shadow: 'purple', isHighPay: false, payouts: [0.5, 1, 5] },
+    'shape_hex': { id: 'shape_hex', icon: Hexagon, color: 'text-pink-500', shadow: 'pink', isHighPay: false, payouts: [0.8, 1.2, 8] },
+    'shape_gem': { id: 'shape_gem', icon: Gem, color: 'text-red-500', shadow: 'red', isHighPay: false, payouts: [1, 1.5, 10] },
 
-    'chalice': { id: 'chalice', icon: '🏆', color: 'text-yellow-200', isHighPay: true, payouts: [1.5, 2, 12] },
-    'ring': { id: 'ring', icon: '💍', color: 'text-blue-200', isHighPay: true, payouts: [2, 5, 15] },
-    'hourglass': { id: 'hourglass', icon: '⏳', color: 'text-purple-200', isHighPay: true, payouts: [2.5, 10, 25] },
-    'crown': { id: 'crown', icon: '👑', color: 'text-yellow-500', isHighPay: true, payouts: [10, 25, 50] },
+    // HIGH PAY (Golden Artifacts)
+    'relic_mouse': { id: 'relic_mouse', icon: MousePointer2, color: 'text-yellow-300', shadow: 'yellow', isHighPay: true, payouts: [1.5, 2, 12] }, // "Golden Cursor"
+    'relic_battery': { id: 'relic_battery', icon: Zap, color: 'text-cyan-300', shadow: 'cyan', isHighPay: true, payouts: [2, 5, 15] },       // "Quantum Battery"
+    'relic_crown': { id: 'relic_crown', icon: Crown, color: 'text-amber-400', shadow: 'amber', isHighPay: true, payouts: [10, 25, 50] },     // "Click Crown"
 };
 
 const SYMBOL_KEYS = Object.keys(SYMBOLS);
 
 // Special Symbols
-const SCATTER = { id: 'scatter', icon: '👺', color: 'text-pink-500' }; // "Dios del Click"
+const SCATTER = { id: 'scatter', icon: '⚡', color: 'text-white drop-shadow-[0_0_15px_rgba(255,255,255,1)]' }; // ZEUS HEAD (Emoji or Image)
+// Using Emoji for now but styled heavily
+const ZEUS_HEAD = '🌩️';
+
 const MULTIPLIER_ORBS = [
-    { value: 2, color: 'bg-green-500' },
-    { value: 5, color: 'bg-blue-500' },
-    { value: 10, color: 'bg-purple-500' },
-    { value: 25, color: 'bg-red-500' },
-    { value: 50, color: 'bg-pink-500 shadow-glow' },
-    { value: 100, color: 'bg-yellow-400 shadow-glow' },
-    { value: 500, color: 'bg-white shadow-[0_0_30px_white]' },
+    { value: 2, color: 'bg-green-500', glow: 'shadow-[0_0_20px_#22c55e]' },
+    { value: 5, color: 'bg-blue-500', glow: 'shadow-[0_0_20px_#3b82f6]' },
+    { value: 10, color: 'bg-purple-500', glow: 'shadow-[0_0_25px_#a855f7]' },
+    { value: 50, color: 'bg-red-600', glow: 'shadow-[0_0_30px_#dc2626] animate-pulse' },
+    { value: 100, color: 'bg-gradient-to-br from-yellow-300 to-amber-600', glow: 'shadow-[0_0_50px_#f59e0b] animate-bounce' },
+    { value: 500, color: 'bg-white', glow: 'shadow-[0_0_80px_#ffffff] ring-4 ring-yellow-400' },
 ];
 
 interface GridCell {
-    id: string; // unique ID for framer motion animation keys
-    symbol: string; // Key in SYMBOLS or 'scatter' or 'mult_X'
-    multValue?: number; // If symbol is a multiplier
+    id: string;
+    symbol: string;
+    multValue?: number;
 }
 
 export function GatesOfClicker() {
     const { coins, removeCoins, addCoins, recordGameResult } = useGameStore();
 
     // --- STATE ---
-    const [grid, setGrid] = useState<GridCell[][]>([]); // [col][row] - easier for dropping
+    const [grid, setGrid] = useState<GridCell[][]>([]);
     const [gameState, setGameState] = useState<'IDLE' | 'SPINNING' | 'CASCADING' | 'WIN_SHOW'>('IDLE');
 
-    // Betting
-    const [bet, setBet] = useState(100);
+    // Betting (High Roller Range)
+    const [bet, setBet] = useState(1000);
     const [anteBet, setAnteBet] = useState(false);
 
-    // Round Stats
+    // Stats
     const [roundWin, setRoundWin] = useState(0);
-    const [totalMult, setTotalMult] = useState(0); // Acumulado de la ronda actual
+    const [totalMult, setTotalMult] = useState(0);
     const [currentWinText, setCurrentWinText] = useState<string | null>(null);
 
     // Free Spins
     const [freeSpins, setFreeSpins] = useState(0);
     const [isFreeSpinMode, setIsFreeSpinMode] = useState(false);
     const [totalFreeSpinWin, setTotalFreeSpinWin] = useState(0);
-    const [globalFreeSpinMult, setGlobalFreeSpinMult] = useState(0); // Multiplicador GLOBAL acumulado (Persistente en Free Spins)
+    const [globalFreeSpinMult, setGlobalFreeSpinMult] = useState(0);
 
-    // Refs for game loop
+    // Visual Effects
+    const [shake, setShake] = useState(false);
+    const [lightning, setLightning] = useState(false);
+
     const isProcessingRef = useRef(false);
     const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-    // Cleanup on unmount
     useEffect(() => {
-        return () => {
-            timeoutsRef.current.forEach(t => clearTimeout(t));
-        };
+        return () => timeoutsRef.current.forEach(t => clearTimeout(t));
     }, []);
 
     const safeSetTimeout = (fn: () => void, ms: number) => {
-        const id = setTimeout(() => {
-            fn();
-            // Remove from ref if needed, but simple clear on unmount is usually enough for this scale
-        }, ms);
+        const id = setTimeout(fn, ms);
         timeoutsRef.current.push(id);
+        return id;
     };
 
-    // --- HELPERS ---
+    // --- LOGIC ---
 
     const getRandomSymbol = (isAnte: boolean): GridCell => {
         const rand = Math.random();
         const id = Math.random().toString(36).substr(2, 9);
 
-        // Probabilities
-        // Scatter: Low chance (increased by Ante)
-        const scatterChance = isAnte ? 0.04 : 0.02; // Doubled chance
+        // VOLATILITY TUNING
+        const scatterChance = isAnte ? 0.05 : 0.025; // 1 in 40 vs 1 in 20
         if (rand < scatterChance) return { id, symbol: 'scatter' };
 
-        // Multiplier: High Volatility but frequent enough to be exciting
-        // Increased base chance slightly
-        if (rand < scatterChance + 0.035) {
-            const m = MULTIPLIER_ORBS[Math.floor(Math.random() > 0.9 ? Math.random() * MULTIPLIER_ORBS.length : Math.floor(Math.random() * 4))];
+        // Multipliers: Rare but Impactful
+        if (rand < scatterChance + 0.03) {
+            // Weighted Orbs: 70% Small, 20% Medium, 9% Big, 1% GOD
+            const orbRand = Math.random();
+            let m;
+            if (orbRand > 0.99) m = MULTIPLIER_ORBS[5]; // 500x
+            else if (orbRand > 0.90) m = MULTIPLIER_ORBS[4]; // 100x
+            else if (orbRand > 0.80) m = MULTIPLIER_ORBS[3]; // 50x
+            else if (orbRand > 0.60) m = MULTIPLIER_ORBS[2]; // 10x
+            else m = MULTIPLIER_ORBS[Math.floor(Math.random() * 2)]; // 2x-5x
+
             return { id, symbol: `mult`, multValue: m.value };
         }
 
-        // Regular Symbols
-        // Weighted slightly towards low pay
+        // Normal Symbols
         const symbolIndex = Math.floor(Math.random() * SYMBOL_KEYS.length);
         return { id, symbol: SYMBOL_KEYS[symbolIndex] };
     };
 
-    const generateInitialGrid = () => {
-        const newGrid: GridCell[][] = [];
-        for (let c = 0; c < GRID_COLS; c++) {
-            const col: GridCell[] = [];
-            for (let r = 0; r < GRID_ROWS; r++) {
-                col.push(getRandomSymbol(anteBet));
-            }
-            newGrid.push(col);
-        }
-        return newGrid;
+    const triggerShake = (intensity: 'light' | 'heavy') => {
+        setShake(true);
+        if (intensity === 'heavy') setLightning(true);
+        safeSetTimeout(() => {
+            setShake(false);
+            setLightning(false);
+        }, intensity === 'heavy' ? 800 : 400);
     };
 
-    // --- CORE MECHANICS ---
+    // --- MAIN LOOP ---
 
     const spin = useCallback(async () => {
         if (gameState !== 'IDLE' && !isFreeSpinMode) return;
@@ -148,12 +163,12 @@ export function GatesOfClicker() {
 
         if (!isFreeSpinMode) {
             if (coins < cost) {
-                toast.error("Sin saldo suficiente!");
+                toast.error("¡Necesitas más clicks para esta apuesta de Dioses!");
                 return;
             }
             removeCoins(cost);
-            setTotalFreeSpinWin(0); // Reset if new manual spin
-            setGlobalFreeSpinMult(0); // Reset global mult
+            setTotalFreeSpinWin(0);
+            setGlobalFreeSpinMult(0);
             playSound.spin();
             setRoundWin(0);
         }
@@ -163,372 +178,378 @@ export function GatesOfClicker() {
         setCurrentWinText(null);
         isProcessingRef.current = true;
 
-        // Simulate Spin Delay (Visual only)
-        // safeSetTimeout not used for await/promise pattern usually, but ok here
         await new Promise(resolve => safeSetTimeout(() => resolve(true), 200));
 
-        const newGrid = generateInitialGrid();
+        // GENERATE GRID
+        const newGrid: GridCell[][] = [];
+        for (let c = 0; c < GRID_COLS; c++) {
+            const col: GridCell[] = [];
+            for (let r = 0; r < GRID_ROWS; r++) {
+                col.push(getRandomSymbol(anteBet));
+            }
+            newGrid.push(col);
+        }
         setGrid(newGrid);
 
-        // Start Cascade Loop
+        // Play Drop Sound
+        // playSound.click();
+
         safeSetTimeout(() => processGrid(newGrid), 500);
 
     }, [bet, anteBet, coins, gameState, isFreeSpinMode]);
 
+
     const processGrid = async (currentGrid: GridCell[][]) => {
         setGameState('CASCADING');
 
-        // 1. Count Symbols
         const counts: Record<string, number> = {};
         let scatters = 0;
-        let multSum = 0;
+        let roundMultValues = 0;
 
-        // Flatten for counting
         currentGrid.flat().forEach(cell => {
             if (cell.symbol === 'scatter') scatters++;
-            else if (cell.symbol === 'mult') multSum += (cell.multValue || 0);
-            else {
-                counts[cell.symbol] = (counts[cell.symbol] || 0) + 1;
-            }
+            else if (cell.symbol === 'mult') roundMultValues += (cell.multValue || 0);
+            else counts[cell.symbol] = (counts[cell.symbol] || 0) + 1;
         });
 
-        // 2. Identify Winners
         const winningSymbols = new Set<string>();
         let stepWin = 0;
 
         Object.entries(counts).forEach(([sym, count]) => {
-            // Check counts for regular symbols (not Scatter/Mult)
             if (SYMBOLS[sym] && count >= MIN_MATCH) {
                 winningSymbols.add(sym);
-                // Calculate Payout
                 const s = SYMBOLS[sym];
                 let multiplier = 0;
-                if (count >= 12) multiplier = s.payouts[2]; // 12+
-                else if (count >= 10) multiplier = s.payouts[1]; // 10-11
-                else multiplier = s.payouts[0]; // 8-9
-
+                if (count >= 12) multiplier = s.payouts[2];
+                else if (count >= 10) multiplier = s.payouts[1];
+                else multiplier = s.payouts[0];
                 stepWin += bet * multiplier;
             }
         });
 
-        // 3. Handle Scatter Trigger (Start of round only? usually scatters persist or trigger at end)
-
-        // 4. If Step Win > 0: Remove and Drop
         if (stepWin > 0) {
             playSound.win();
             setRoundWin(prev => prev + stepWin);
             setCurrentWinText(`+${formatCurrency(stepWin)}`);
 
-            // Highlight / Explode Animation Delay
+            // Dramatic Effect if Big Win
+            if (stepWin > bet * 10) triggerShake('light');
+
             await new Promise(resolve => safeSetTimeout(() => resolve(true), EXPLOSION_DURATION * 1000));
 
             const nextGrid = currentGrid.map(col => {
-                // Filter out winning symbols
                 const kept = col.filter(cell => !winningSymbols.has(cell.symbol));
-                // Fill missing spots at TOP
                 const missing = GRID_ROWS - kept.length;
                 const newCells = Array.from({ length: missing }).map(() => getRandomSymbol(anteBet));
-                return [...newCells, ...kept]; // New ones at start (top)
+                return [...newCells, ...kept];
             });
 
             setGrid(nextGrid);
-            playSound.click(); // Drop sound
-
-            // Loop
-            setTimeout(() => processGrid(nextGrid), DELAY_BETWEEN_CASCADES);
+            safeSetTimeout(() => processGrid(nextGrid), DELAY_BETWEEN_CASCADES);
 
         } else {
-            // NO MORE WINS - FINALIZE ROUND
             finalizeRound(currentGrid, roundWin, scatters);
         }
     };
 
     const finalizeRound = async (finalGrid: GridCell[][], totalWin: number, scatters: number) => {
-        // Collect Multipliers visible on screen
         let roundMultValues = 0;
         finalGrid.flat().forEach(c => {
             if (c.symbol === 'mult') roundMultValues += (c.multValue || 0);
         });
 
         let finalPayout = totalWin;
-        let appliedTotalMult = roundMultValues;
 
-        // Apply Global Multiplier Logic (Free Spins)
-        if (isFreeSpinMode) {
-            // If there's a Multiplier symbol AND a win, add to Global
-            if (roundMultValues > 0 && totalWin > 0) {
+        // --- GOD MODE MULTIPLIER LOGIC ---
+        // 1. Accumulate Multipliers animation (if any)
+        if (roundMultValues > 0 && totalWin > 0) {
+            // Visual wait for orb collection
+            await new Promise(resolve => safeSetTimeout(() => resolve(true), 500));
+
+            if (isFreeSpinMode) {
                 setGlobalFreeSpinMult(prev => prev + roundMultValues);
-                appliedTotalMult = globalFreeSpinMult + roundMultValues;
-            } else if (totalWin > 0 && globalFreeSpinMult > 0) {
-                // If just a win but no new multiplier, use existing global
-                // In Gates: Is global applied even if no *new* mult hits?
-                // Rule: "Whenever a Multiplier symbol hits... the Multiplier value is added to Total Multiplier."
-                // "For the whole duration... whenever any new Multiplier symbol hits... Total Multiplier value is also used."
-                // Implication: You NEED a Multiplier symbol on screen to trigger the Total Multiplier application.
-                // Let's stick to simple logic: If (Win > 0 and MultOnScreen > 0), Apply (Global + Local). And Add Local to Global.
-                // Actually most implementations: Total Multiplier applies ONLY if a multiplier lands on the winning spin.
-                // Re-reading request: "los multiplicadores se acumulan en un contador global que no se reinicia"
-                // Let's implement: If (Win > 0 and MultOnScreen > 0), add to Global. Then Apply Global to Win.
+                // "Broken" Mechanic: Add Local to Global, THEN Apply Global
+                // This scaling is exponential if user gets lucky.
+                finalPayout = totalWin * (globalFreeSpinMult + roundMultValues);
 
-                // If there are NO multipliers on screen, usually global is NOT applied (in Gates).
-                // But let's check user request "suma de los multiplicadores se aplica a la ganancia total". 
-                // Let's go with: Apply Global ONLY if Local > 0.
-                appliedTotalMult = globalFreeSpinMult; // If no new multiplier, but global exists and there's a win, apply global.
+                // Shake heavy if mult applied is huge
+                if (globalFreeSpinMult + roundMultValues > 50) triggerShake('heavy');
+            } else {
+                finalPayout = totalWin * roundMultValues;
+                if (roundMultValues > 20) triggerShake('heavy');
             }
-        } else {
-            appliedTotalMult = roundMultValues;
-        }
 
-        // Calculate Final Win for this Spin
-        if (totalWin > 0 && appliedTotalMult > 0) {
-            // Show animation
-            toast.success(`MULTIPLICADOR x${appliedTotalMult}!`);
+            toast.success(`¡MULTIPLICADOR APLICADO!`);
             playSound.jackpot();
-            finalPayout = totalWin * appliedTotalMult;
-            setTotalMult(appliedTotalMult);
-            await new Promise(resolve => safeSetTimeout(() => resolve(true), 1000));
+            setTotalMult(isFreeSpinMode ? globalFreeSpinMult + roundMultValues : roundMultValues);
+
+            // Dramactic Pause after multiplier hit
+            await new Promise(resolve => safeSetTimeout(() => resolve(true), 1200));
+        } else if (isFreeSpinMode && totalWin > 0 && globalFreeSpinMult > 0 && roundMultValues === 0) {
+            // If FreeSpin and NO new orb, usually Gates DOES NOT apply global.
+            // But user asked for "Chetado". Let's apply Global if win exists?
+            // "si hay 8 o más símbolos... paga" -> Logic standard.
+            // "Durante los giros gratis, si un multiplicador aterriza Y hay una victoria... se suma"
+            // Implies: If NO multiplier lands, NO global application?
+            // Most implementations require a multiplier symbol to "Unlock" the global multiplier for that spin.
+            // But let's be generous for the "Chetado" feel.
+            // Actually, the prompt says "si un multiplicador aterriza... se suma". It doesn't explicitly say "Apply global always".
+            // Let's stick to: Global applies ONLY if Local lands. This builds TENSION. You have a huge 500x global, but you NEED a 2x to land to cash it out. That is DOPAMINE.
+            finalPayout = totalWin; // No mult applied if no orb landed.
         }
 
         if (finalPayout > 0) {
             addCoins(finalPayout);
-            if (isFreeSpinMode) {
-                setTotalFreeSpinWin(prev => prev + finalPayout);
-            }
-            setCurrentWinText(`TOTAL: ${formatCurrency(finalPayout)}`);
+            if (isFreeSpinMode) setTotalFreeSpinWin(prev => prev + finalPayout);
         }
 
-        // Check Free Spins Trigger/Retrigger
         if (scatters >= SCATTER_TRIGGER) {
             playSound.jackpot();
             if (!isFreeSpinMode) {
-                toast.success("🎰 BONO DE 15 GIROS GRATIS! 🎰");
+                triggerShake('heavy');
+                toast.success("⚡ MODO DIOS ACTIVADO: 15 GIROS GRATIS ⚡");
                 setIsFreeSpinMode(true);
                 setFreeSpins(15);
-                setGlobalFreeSpinMult(0); // Start fresh global
+                setGlobalFreeSpinMult(0);
             } else {
-                toast.success("🎰 +5 GIROS GRATIS! 🎰");
-                setFreeSpins(prev => prev + 5); // Retrigger
+                toast.success("⚡ RETRIGGER: +5 GIROS ⚡");
+                setFreeSpins(prev => prev + 5);
             }
         }
 
-        // Record Stats
-        recordGameResult('gates_clicker', {
+        recordGameResult('gates_god_mode', {
             win: finalPayout,
             bet: anteBet ? bet * 1.25 : bet,
-            custom: { multiplier: appliedTotalMult }
+            custom: { multiplier: isFreeSpinMode ? globalFreeSpinMult : roundMultValues }
         });
 
         isProcessingRef.current = false;
         setGameState('IDLE');
 
-        // Auto-Play Free Spins
         if (isFreeSpinMode && freeSpins > 0) {
             safeSetTimeout(() => {
                 setFreeSpins(prev => prev - 1);
-                spin(); // Recursive-ish
+                spin();
             }, 1500);
         } else if (isFreeSpinMode && freeSpins <= 0) {
             setIsFreeSpinMode(false);
             setGlobalFreeSpinMult(0);
-            toast.info(`Fin del Bono. Total: ${formatCurrency(totalFreeSpinWin)}`);
+            toast.info(`Fin del Modo Dios. Ganancia: ${formatCurrency(totalFreeSpinWin)}`);
         }
     };
 
-    // --- RENDER ---
+    // --- RENDER HELPERS ---
+    const bets = [1000, 10000, 50000, 100000, 250000, 500000, 1000000, 2500000, 5000000];
 
     return (
-        <div className="flex flex-col items-center w-full max-w-6xl mx-auto min-h-[600px]">
-            {/* Header */}
-            <div className="w-full flex justify-between items-center mb-4 px-4">
-                <div className="flex flex-col">
-                    <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-600 tracking-tighter drop-shadow-sm">
-                        GATES OF CLICKER
-                    </h1>
-                    <span className="text-xs text-yellow-500 font-mono tracking-widest">VOLATILIDAD EXTREMA</span>
+        <div className={cn(
+            "relative flex flex-col items-center w-full max-w-6xl mx-auto min-h-[700px] p-4 rounded-3xl overflow-hidden transition-all duration-100",
+            shake ? "translate-x-1 translate-y-1 rotate-1 scale-[1.01]" : "",
+            GOD_THEME.bg
+        )}>
+            {/* BACKGROUND EFFECTS */}
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-20 pointer-events-none"></div>
+            {lightning && <div className="absolute inset-0 bg-white/20 z-50 animate-pulse pointer-events-none mix-blend-overlay"></div>}
+
+            {/* HEADER */}
+            <div className="z-10 w-full flex justify-between items-center mb-6 pl-4 pr-4 border-b border-white/5 pb-4">
+                <div className="flex items-center gap-3">
+                    <div className="bg-gradient-to-br from-yellow-400 to-amber-700 w-12 h-12 rounded-full flex items-center justify-center shadow-[0_0_20px_orange]">
+                        <Zap className="text-white fill-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-4xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-amber-400 to-yellow-600 drop-shadow-[0_2px_4px_rgba(0,0,0,1)]">
+                            GATES OF CLICKER
+                        </h1>
+                        <span className="text-[10px] text-amber-500 font-mono tracking-[0.3em] uppercase opacity-80">God Mode V3.0</span>
+                    </div>
                 </div>
 
-                {/* Total Win Display */}
-                <div className="bg-black/60 border-2 border-yellow-500/50 rounded-xl px-6 py-2 text-right">
-                    <div className="text-xs text-gray-400 uppercase">Ganancia Ronda</div>
-                    <div className="text-2xl font-mono font-bold text-green-400">
+                <div className="flex flex-col items-end">
+                    <span className="text-xs text-gray-400 uppercase tracking-widest">Ganancia Actual</span>
+                    <div className="text-3xl font-mono font-bold text-green-400 drop-shadow-[0_0_10px_rgba(74,222,128,0.5)]">
                         {currentWinText || formatCurrency(roundWin)}
                     </div>
                 </div>
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-6 w-full">
+            <div className="flex flex-col lg:flex-row gap-8 w-full z-10">
 
-                {/* SIDEBAR: Stats & Free Spins Info */}
-                <div className="w-full lg:w-64 flex flex-col gap-4 order-2 lg:order-1">
-                    <div className={cn(
-                        "rounded-2xl p-4 border transition-all duration-300 relative overflow-hidden",
-                        isFreeSpinMode
-                            ? "bg-gradient-to-b from-purple-900 to-indigo-900 border-purple-400 shadow-[0_0_30px_rgba(168,85,247,0.4)]"
-                            : "bg-black/40 border-white/10"
-                    )}>
-                        {isFreeSpinMode && (
-                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-purple-400 to-transparent animate-pulse"></div>
-                        )}
+                {/* LEFT PANEL: STATS & CONTROLS */}
+                <div className="w-full lg:w-72 flex flex-col gap-6 order-2 lg:order-1">
 
-                        <div className="text-center">
-                            {isFreeSpinMode ? (
-                                <>
-                                    <h3 className="text-purple-300 font-black text-lg uppercase mb-2">Giros Gratis</h3>
-                                    <div className="text-5xl font-black text-white mb-2 filter drop-shadow-[0_0_10px_purple]">{freeSpins}</div>
-                                    <div className="text-xs text-purple-200">Restantes</div>
-
-                                    {/* Global Multiplier Display */}
-                                    <div className="mt-4 pt-4 border-t border-white/10">
-                                        <div className="text-xs text-yellow-500 font-bold uppercase mb-1">Multiplicador Global</div>
-                                        <div className="text-3xl font-black text-yellow-400 bg-white/10 rounded-lg py-1 px-3 inline-block">
-                                            x{globalFreeSpinMult}
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-4 pt-4 border-t border-white/10">
-                                        <div className="text-xs text-gray-400">Total Ganado</div>
-                                        <div className="text-xl text-green-400 font-mono">{formatCurrency(totalFreeSpinWin)}</div>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="flex items-center justify-center gap-2 mb-2">
-                                        <Zap className="text-yellow-500 w-5 h-5" />
-                                        <span className="font-bold text-white">Multiplicador</span>
-                                    </div>
-                                    <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-orange-500">
-                                        {totalMult > 0 ? `x${totalMult}` : '---'}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* ANTE BET TOGGLE */}
-                    <button
-                        onClick={() => !gameState.match(/SPINNING|CASCADING/) && setAnteBet(!anteBet)}
-                        disabled={gameState !== 'IDLE'}
+                    {/* ACCUMULATOR CARD */}
+                    <motion.div
+                        animate={isFreeSpinMode ? { boxShadow: ["0 0 20px #a855f7", "0 0 40px #a855f7", "0 0 20px #a855f7"] } : {}}
+                        transition={{ duration: 2, repeat: Infinity }}
                         className={cn(
-                            "group relative p-4 rounded-xl border-2 transition-all text-left overflow-hidden",
-                            anteBet
-                                ? "bg-amber-900/40 border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.2)]"
-                                : "bg-black/40 border-white/10 hover:border-white/20"
+                            "rounded-3xl p-6 border-2 relative overflow-hidden flex flex-col items-center justify-center min-h-[160px]",
+                            isFreeSpinMode
+                                ? "bg-gradient-to-br from-purple-900/80 to-indigo-950/80 border-purple-500"
+                                : "bg-white/5 border-white/10"
                         )}
                     >
-                        <div className="relative z-10 flex flex-col">
-                            <span className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-1">
-                                Doble Probabilidad
-                            </span>
-                            <span className="text-sm text-gray-300 leading-tight">
-                                Activa el <b className="text-white">Ante Bet</b> para duplicar la chance de scatter.
-                            </span>
-                            <div className="mt-3 text-xs font-mono bg-black/50 inline-block px-2 py-1 rounded">
-                                Costo: +25%
-                            </div>
-                        </div>
-                        {anteBet && (
-                            <div className="absolute -right-4 -bottom-4 text-amber-500/10 rotate-12">
-                                <Flame size={100} />
-                            </div>
+                        {isFreeSpinMode ? (
+                            <>
+                                <div className="absolute top-2 right-2 text-xs font-bold bg-purple-600 px-2 py-0.5 rounded text-white">FREE SPINS</div>
+                                <div className="text-6xl font-black text-white mb-2 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">{freeSpins}</div>
+                                <div className="w-full h-px bg-white/20 my-2"></div>
+                                <div className="flex flex-col items-center">
+                                    <span className="text-xs text-yellow-500 font-bold uppercase">Mult. Global</span>
+                                    <div className="text-4xl font-black text-yellow-400 drop-shadow-[0_0_10px_orange]">x{globalFreeSpinMult}</div>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-xs text-gray-500 uppercase tracking-widest mb-2 font-bold">Multiplicador Ronda</div>
+                                <div className={cn(
+                                    "text-5xl font-black transition-all",
+                                    totalMult > 0 ? "text-yellow-400 scale-110 drop-shadow-[0_0_30px_orange]" : "text-gray-700"
+                                )}>
+                                    x{totalMult}
+                                </div>
+                            </>
                         )}
+                    </motion.div>
+
+                    {/* ANTE BET */}
+                    <button
+                        onClick={() => gameState === 'IDLE' && setAnteBet(!anteBet)}
+                        className={cn(
+                            "relative p-4 rounded-2xl border-2 transition-all duration-300 group overflow-hidden",
+                            anteBet ? "bg-amber-900/40 border-amber-500" : "bg-white/5 border-white/10 hover:border-white/20"
+                        )}
+                    >
+                        <div className="absolute -right-6 -bottom-6 opacity-20 group-hover:opacity-40 transition-opacity">
+                            <Flame size={80} className={anteBet ? "text-amber-500" : "text-gray-500"} />
+                        </div>
+                        <div className="relative z-10 text-left">
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className={cn("w-3 h-3 rounded-full shadow-[0_0_10px_currentColor]", anteBet ? "bg-green-500 text-green-500" : "bg-gray-600 text-gray-600")}></span>
+                                <span className="font-bold text-sm uppercase text-white">Doble Probabilidad</span>
+                            </div>
+                            <p className="text-xs text-gray-400 leading-relaxed">
+                                Aumenta la apuesta un <span className="text-amber-500 font-bold">25%</span> para duplicar la chance de encontrar a Zeus.
+                            </p>
+                        </div>
                     </button>
+
+                    {/* BET SELECTOR */}
+                    <div className="bg-[#1a1625] p-4 rounded-2xl border border-white/10">
+                        <span className="text-xs text-gray-500 font-bold uppercase mb-3 block">Apuesta</span>
+                        <div className="grid grid-cols-3 gap-2">
+                            {bets.map(b => (
+                                <button
+                                    key={b}
+                                    onClick={() => setBet(b)}
+                                    disabled={gameState !== 'IDLE'}
+                                    className={cn(
+                                        "py-2 px-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all border",
+                                        bet === b
+                                            ? "bg-amber-600 border-amber-400 text-white shadow-[0_0_10px_orange]"
+                                            : "bg-white/5 border-transparent text-gray-400 hover:bg-white/10"
+                                    )}
+                                >
+                                    {b >= 1000000 ? (b / 1000000) + 'M' : (b / 1000) + 'k'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
                 {/* GAME GRID (CENTER) */}
-                <div className="flex-1 order-1 lg:order-2">
-                    <div className="relative aspect-[6/5] w-full max-w-[800px] bg-[#0f0b15] rounded-xl border-4 border-[#2d2438] shadow-2xl p-2 md:p-4 overflow-hidden">
-                        {/* Background Effect */}
-                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-30 pointer-events-none"></div>
-                        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-purple-900/20 to-transparent pointer-events-none"></div>
+                <div className="flex-1 relative order-1 lg:order-2">
+                    <div className="relative aspect-[6/5] w-full bg-[#16121d] rounded-2xl border-[3px] border-amber-700/30 shadow-2xl overflow-hidden p-2">
+                        {/* Grid Inner Border */}
+                        <div className="absolute inset-0 border border-amber-500/10 rounded-xl pointer-events-none z-20"></div>
 
-                        {/* GRID CONTAINER */}
-                        <div className="grid grid-cols-6 gap-1 md:gap-2 h-full z-10 relative">
-                            {grid.map((col, cIndex) => (
-                                <div key={cIndex} className="flex flex-col gap-1 md:gap-2 h-full">
-                                    {col.map((cell) => {
-                                        const isScatter = cell.symbol === 'scatter';
-                                        const isMult = cell.symbol === 'mult';
-                                        const asset = SYMBOLS[cell.symbol];
+                        <div className="grid grid-cols-6 gap-1.5 h-full relative z-10">
+                            <AnimatePresence>
+                                {grid.map((col, cIndex) => (
+                                    <div key={`col-${cIndex}`} className="flex flex-col gap-1.5 h-full">
+                                        {col.map((cell) => {
+                                            const asset = SYMBOLS[cell.symbol];
+                                            const isScatter = cell.symbol === 'scatter';
+                                            const isMult = cell.symbol === 'mult';
+                                            const orb = isMult ? MULTIPLIER_ORBS.find(o => o.value === cell.multValue) : null;
 
-                                        return (
-                                            <motion.div
-                                                layoutId={cell.id}
-                                                key={cell.id}
-                                                initial={{ y: -500, opacity: 0 }}
-                                                animate={{ y: 0, opacity: 1 }}
-                                                exit={{ scale: 0, opacity: 0, rotate: 180 }}
-                                                transition={{ duration: 0.3, type: "spring", stiffness: 200, damping: 25 }}
-                                                className={cn(
-                                                    "flex-1 rounded-lg md:rounded-xl flex items-center justify-center relative shadow-inner group",
-                                                    isMult ? "bg-black/60" : "bg-[#1a1523]",
-                                                    "border border-white/5"
-                                                )}
-                                            >
-                                                {isScatter ? (
-                                                    <div className="text-3xl md:text-5xl animate-pulse filter drop-shadow-[0_0_10px_rgba(236,72,153,0.8)]">
-                                                        {SCATTER.icon}
-                                                    </div>
-                                                ) : isMult ? (
-                                                    <div className={cn(
-                                                        "w-10 h-10 md:w-16 md:h-16 rounded-full flex items-center justify-center font-black text-white text-xs md:text-lg border-2 border-white/30",
-                                                        MULTIPLIER_ORBS.find(m => m.value === cell.multValue)?.color || 'bg-gray-500'
-                                                    )}>
-                                                        x{cell.multValue}
-                                                    </div>
-                                                ) : (
-                                                    <div className={cn("text-3xl md:text-5xl transform transition-transform group-hover:scale-110", asset?.color)}>
-                                                        {asset?.icon || '?'}
-                                                    </div>
-                                                )}
-                                            </motion.div>
-                                        );
-                                    })}
-                                </div>
-                            ))}
+                                            // Handle Variants
+                                            return (
+                                                <motion.div
+                                                    layoutId={cell.id}
+                                                    key={cell.id}
+                                                    initial={{ y: -600, opacity: 0, scale: 0.5 }}
+                                                    animate={{ y: 0, opacity: 1, scale: 1 }}
+                                                    exit={{ scale: 0, opacity: 0, filter: 'brightness(3)' }}
+                                                    transition={{
+                                                        type: "spring",
+                                                        stiffness: 250,
+                                                        damping: 25,
+                                                        mass: 1
+                                                    }}
+                                                    className={cn(
+                                                        "flex-1 rounded-lg flex items-center justify-center relative group overflow-visible",
+                                                        isMult ? "" : "bg-[#1f1a29]"
+                                                    )}
+                                                >
+                                                    {/* SYMBOL CONTENT */}
+                                                    {isScatter ? (
+                                                        <div className="text-4xl sm:text-5xl animate-pulse drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] filter brightness-125">
+                                                            {ZEUS_HEAD}
+                                                        </div>
+                                                    ) : isMult ? (
+                                                        <div className={cn(
+                                                            "w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center border-2 border-white/40",
+                                                            orb?.color, orb?.glow
+                                                        )}>
+                                                            <span className="font-black text-white text-xs sm:text-sm drop-shadow-md">
+                                                                {cell.multValue}x
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className={cn(
+                                                            "transition-all duration-300 group-hover:scale-110",
+                                                            asset?.color,
+                                                            `drop-shadow-[0_0_8px_${asset?.shadow}]`
+                                                        )}>
+                                                            {asset && <asset.icon size={36} strokeWidth={2.5} />}
+                                                        </div>
+                                                    )}
+                                                </motion.div>
+                                            );
+                                        })}
+                                    </div>
+                                ))}
+                            </AnimatePresence>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* CONTROLS (BOTTOM) */}
-            <div className="w-full max-w-2xl mt-8 bg-[#15101f] p-4 rounded-3xl border border-white/10 flex items-center justify-between gap-4 shadow-xl z-20">
-                <div className="flex flex-col gap-1">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Tu Apuesta</span>
-                    <div className="flex items-center gap-2 bg-black/40 rounded-lg p-1.5 border border-white/5">
-                        <button
-                            onClick={() => setBet(b => Math.max(100, b - 100))}
-                            className="w-8 h-8 flex items-center justify-center bg-white/10 rounded hover:bg-white/20 text-white font-bold"
-                        >-</button>
-                        <span className="w-24 text-center font-mono font-bold text-yellow-500">{formatCurrency(bet)}</span>
-                        <button
-                            onClick={() => setBet(b => b + 100)}
-                            className="w-8 h-8 flex items-center justify-center bg-white/10 rounded hover:bg-white/20 text-white font-bold"
-                        >+</button>
-                    </div>
-                </div>
-
+            {/* BIG SPIN BUTTON */}
+            <div className="w-full max-w-md mt-6 z-20">
                 <button
                     onClick={spin}
                     disabled={gameState !== 'IDLE' && !isFreeSpinMode}
                     className={cn(
-                        "flex-1 h-16 rounded-2xl font-black text-xl md:text-3xl tracking-wide shadow-lg transition-all flex items-center justify-center gap-3",
+                        "w-full h-20 rounded-full font-black text-2xl tracking-widest uppercase transition-all shadow-xl active:scale-95 flex items-center justify-center gap-4 border-b-4",
                         gameState !== 'IDLE'
-                            ? "bg-gray-700 text-gray-400 cursor-not-allowed"
-                            : "bg-gradient-to-b from-green-500 to-green-700 hover:scale-[1.02] active:scale-95 text-white shadow-[0_4px_0_rgb(21,128,61)]"
+                            ? "bg-gray-800 text-gray-500 border-gray-950 cursor-not-allowed"
+                            : "bg-gradient-to-b from-green-500 to-emerald-700 border-emerald-900 text-white hover:brightness-110 shadow-[0_0_30px_rgba(16,185,129,0.4)]"
                     )}
                 >
                     {isFreeSpinMode ? (
                         <>
-                            <RefreshCw className="animate-spin w-8 h-8" />
-                            AUTO {freeSpins}
+                            <div className="w-6 h-6 border-b-2 border-l-2 border-white rounded-full animate-spin"></div>
+                            AUTO ({freeSpins})
                         </>
-                    ) : gameState === 'IDLE' ? (
-                        <>GIRAR</>
                     ) : (
-                        <>...</>
+                        gameState === 'IDLE' ? "GIRAR" : "..."
                     )}
                 </button>
             </div>
         </div>
     );
 }
+
+// TODO: Move types to separate file if file grows too large.
