@@ -1,12 +1,11 @@
-```
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../../stores/gameStore';
 import { toast } from 'sonner';
 import { cn, formatCurrency } from '../../lib/utils';
-import { 
-    Zap, Flame, MousePointer2, Crown, 
-    Gem, Hexagon, Triangle, Square, Circle 
+import {
+    Zap, Flame, MousePointer2, Crown,
+    Gem, Hexagon, Triangle, Square, Circle
 } from 'lucide-react';
 import { playSound } from '../../lib/soundManager';
 
@@ -94,8 +93,8 @@ export function GatesOfClicker() {
     const [roundWin, setRoundWin] = useState(0);
     const [totalMult, setTotalMult] = useState(0);
     const [currentWinText, setCurrentWinText] = useState<string | null>(null);
-    const [winningCells, setWinningCells] = useState<{c: number, r: number, color: string}[]>([]); // For Lines
-    const [winningGroups, setWinningGroups] = useState<{points: {x:number, y:number}[], color: string}[]>([]); // SVG Lines
+    const [winningCells, setWinningCells] = useState<{ c: number, r: number, color: string }[]>([]); // For Lines
+    const [winningGroups, setWinningGroups] = useState<{ points: { x: number, y: number }[], color: string }[]>([]); // SVG Lines
 
     // Free Spins
     const [freeSpins, setFreeSpins] = useState(0);
@@ -105,7 +104,7 @@ export function GatesOfClicker() {
     // Auto-spin trigger
     const triggerNextSpin = useRef(false);
 
-    // Visual Effects
+    // Visuals
     const [shake, setShake] = useState(false);
     const [lightning, setLightning] = useState(false);
 
@@ -140,10 +139,10 @@ export function GatesOfClicker() {
             // End of Bonus
             setIsFreeSpinMode(false);
             setGlobalFreeSpinMult(0);
-            toast.info(`Fin del Modo Dios.Ganancia: ${ formatCurrency(totalFreeSpinWin) } `);
+            toast.info(`Fin del Modo Dios. Ganancia: ${formatCurrency(totalFreeSpinWin)}`);
         }
     }, [isFreeSpinMode, gameState, freeSpins, spin, totalFreeSpinWin]);
-    
+
     // --- LOGIC ---
 
     const getRandomSymbol = (c: number, r: number, isAnte: boolean): GridCell => {
@@ -152,7 +151,7 @@ export function GatesOfClicker() {
 
         // VOLATILITY TUNING
         const scatterChance = isAnte ? 0.05 : 0.025; // 1 in 40 vs 1 in 20
-        
+
         let symbol = '';
         let multValue = undefined;
 
@@ -249,13 +248,13 @@ export function GatesOfClicker() {
 
         // 2. Identify Winners & Lines
         const winningIds = new Set<string>();
-        const newWinningGroups: {points: {x:number, y:number}[], color: string}[] = [];
+        const newWinningGroups: { points: { x: number, y: number }[], color: string }[] = [];
         let stepWin = 0;
 
         Object.entries(counts).forEach(([sym, cells]) => {
             if (SYMBOLS[sym] && cells.length >= MIN_MATCH) {
                 cells.forEach(c => winningIds.add(c.id));
-                
+
                 // Calculate Centers for Lines (0-100 scale relative to grid container)
                 // Col width ~= 100/6 %, Row height ~= 100/5 %
                 // Center X = (colIndex + 0.5) * (100/6)
@@ -268,7 +267,7 @@ export function GatesOfClicker() {
                 points.sort((a, b) => a.x - b.x || a.y - b.y);
 
                 newWinningGroups.push({
-                    points, 
+                    points,
                     color: getSymbolColor(sym)
                 });
 
@@ -286,7 +285,7 @@ export function GatesOfClicker() {
             setWinningGroups(newWinningGroups);
             playSound.win();
             setRoundWin(prev => prev + stepWin);
-            setCurrentWinText(`+ ${ formatCurrency(stepWin) } `);
+            setCurrentWinText(`+${formatCurrency(stepWin)}`);
 
             // Dramatic Effect if Big Win
             if (stepWin > bet * 10) triggerShake('light');
@@ -302,15 +301,15 @@ export function GatesOfClicker() {
                 // Add new cells at top
                 const newCells = Array.from({ length: missing }).map((_, i) => getRandomSymbol(cIndex, i, anteBet));
                 // Remap row indices for kept cells
-                const remappedKept = kept.map((cell, i) => ({...cell, rowIndex: missing + i}));
-                
+                const remappedKept = kept.map((cell, i) => ({ ...cell, rowIndex: missing + i }));
+
                 // New cells go to 0..missing-1.
                 // Kept cells go to missing..ROWS-1.
-                const newCellsWithPos = newCells.map((c, i) => ({...c, rowIndex: i}));
-                
-                return [...newCellsWithPos, ...remappedKept]; 
+                const newCellsWithPos = newCells.map((c, i) => ({ ...c, rowIndex: i }));
+
+                return [...newCellsWithPos, ...remappedKept];
             });
-            
+
             setGrid(nextGrid);
             safeSetTimeout(() => processGrid(nextGrid), DELAY_BETWEEN_CASCADES);
 
@@ -359,7 +358,7 @@ export function GatesOfClicker() {
                 if (appliedMult > 20) triggerShake('heavy');
             }
 
-            toast.success(`¡X${ appliedMult } !`);
+            toast.success(`¡X${appliedMult}!`);
             playSound.jackpot();
             setTotalMult(appliedMult);
 
@@ -424,13 +423,13 @@ export function GatesOfClicker() {
 
             {/* HEADER */}
             <div className="z-10 w-full flex justify-between items-center mb-6 px-4 py-2 bg-black/20 rounded-xl backdrop-blur-sm border border-white/5">
-                 <div className="flex items-center gap-2">
-                     <Zap className="text-amber-500 fill-amber-500" />
-                     <h1 className="text-2xl font-black italic text-amber-400">GATES OF CLICKER</h1>
-                 </div>
-                 <div className="text-2xl font-mono font-bold text-green-400">
+                <div className="flex items-center gap-2">
+                    <Zap className="text-amber-500 fill-amber-500" />
+                    <h1 className="text-2xl font-black italic text-amber-400">GATES OF CLICKER</h1>
+                </div>
+                <div className="text-2xl font-mono font-bold text-green-400">
                     {currentWinText || formatCurrency(roundWin)}
-                 </div>
+                </div>
             </div>
 
             <div className="flex flex-col lg:flex-row gap-8 w-full z-10">
@@ -461,12 +460,12 @@ export function GatesOfClicker() {
                     </div>
 
                     {/* ANTE BET */}
-                    <button 
-                         onClick={() => gameState === 'IDLE' && setAnteBet(!anteBet)}
-                         className={cn(
-                             "relative p-4 rounded-xl border-2 transition-all flex items-center justify-between group",
-                             anteBet ? "bg-amber-900/30 border-amber-500" : "bg-white/5 border-white/10 hover:border-white/20"
-                         )}
+                    <button
+                        onClick={() => gameState === 'IDLE' && setAnteBet(!anteBet)}
+                        className={cn(
+                            "relative p-4 rounded-xl border-2 transition-all flex items-center justify-between group",
+                            anteBet ? "bg-amber-900/30 border-amber-500" : "bg-white/5 border-white/10 hover:border-white/20"
+                        )}
                     >
                         <div className="flex flex-col items-start">
                             <span className="font-bold text-white text-sm">DOBLE PROBABILIDAD</span>
@@ -489,7 +488,7 @@ export function GatesOfClicker() {
                                     bet === b ? "bg-amber-600 border-amber-400 text-white" : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
                                 )}
                             >
-                                {b >= 1000000 ? (b/1000000)+'M' : (b/1000)+'k'}
+                                {b >= 1000000 ? (b / 1000000) + 'M' : (b / 1000) + 'k'}
                             </button>
                         ))}
                     </div>
@@ -498,7 +497,7 @@ export function GatesOfClicker() {
                 {/* GAME GRID (CENTER) */}
                 <div className="flex-1 relative order-1 lg:order-2 select-none">
                     <div className="relative aspect-[6/5] w-full bg-[#16121d] rounded-xl border-[4px] border-amber-800/50 shadow-2xl p-2 overflow-hidden">
-                        
+
                         {/* WINNING LINES SVG OVERLAY */}
                         <svg className="absolute inset-0 w-full h-full z-20 pointer-events-none">
                             <AnimatePresence>
@@ -508,8 +507,8 @@ export function GatesOfClicker() {
                                         animate={{ opacity: 1 }}
                                         exit={{ opacity: 0 }}
                                     >
-                                        <path 
-                                            d={`M ${ group.points.map(p => `${p.x} ${p.y}`).join(' L ') } `}
+                                        <path
+                                            d={`M ${group.points.map(p => `${p.x} ${p.y}`).join(' L ')}`}
                                             fill="none"
                                             stroke={group.color}
                                             strokeWidth="1.5"
@@ -524,10 +523,10 @@ export function GatesOfClicker() {
                             </AnimatePresence>
                             <defs>
                                 <filter id="glow">
-                                    <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                                    <feGaussianBlur stdDeviation="2" result="coloredBlur" />
                                     <feMerge>
-                                        <feMergeNode in="coloredBlur"/>
-                                        <feMergeNode in="SourceGraphic"/>
+                                        <feMergeNode in="coloredBlur" />
+                                        <feMergeNode in="SourceGraphic" />
                                     </feMerge>
                                 </filter>
                             </defs>
@@ -541,16 +540,16 @@ export function GatesOfClicker() {
                                             const asset = SYMBOLS[cell.symbol];
                                             const isMult = cell.symbol === 'mult';
                                             const isScatter = cell.symbol === 'scatter';
-                                            const isWin = winningGroups.some(g => g.points.some(p => Math.abs(p.x - (cIndex+0.5)*(100/GRID_COLS)) < 1 && Math.abs(p.y - (cell.rowIndex+0.5)*(100/GRID_ROWS)) < 1));
+                                            const isWin = winningGroups.some(g => g.points.some(p => Math.abs(p.x - (cIndex + 0.5) * (100 / GRID_COLS)) < 1 && Math.abs(p.y - (cell.rowIndex + 0.5) * (100 / GRID_ROWS)) < 1));
 
                                             return (
                                                 <motion.div
                                                     layout
                                                     key={cell.id}
                                                     initial={{ y: -500, opacity: 0, scale: 0.5 }}
-                                                    animate={{ 
-                                                        y: 0, 
-                                                        opacity: 1, 
+                                                    animate={{
+                                                        y: 0,
+                                                        opacity: 1,
                                                         scale: isWin ? 1.1 : 1,
                                                         filter: isWin ? 'brightness(1.5)' : 'none',
                                                         zIndex: isWin ? 50 : 0
@@ -564,18 +563,18 @@ export function GatesOfClicker() {
                                                 >
                                                     {isScatter && <span className="text-4xl animate-bounce">{ZEUS_HEAD}</span>}
                                                     {isMult && (
-                                                       <div className={cn(
-                                                           "w-10 h-10 rounded-full flex items-center justify-center border-2 border-white font-black text-xs text-white shadow-lg",
-                                                           MULTIPLIER_ORBS.find(o => o.value === cell.multValue)?.color
-                                                       )}>
-                                                           {cell.multValue}x
-                                                       </div>
+                                                        <div className={cn(
+                                                            "w-10 h-10 rounded-full flex items-center justify-center border-2 border-white font-black text-xs text-white shadow-lg",
+                                                            MULTIPLIER_ORBS.find(o => o.value === cell.multValue)?.color
+                                                        )}>
+                                                            {cell.multValue}x
+                                                        </div>
                                                     )}
                                                     {asset && (
                                                         <div className={cn("transition-transform", asset.color)}>
-                                                            <asset.icon 
-                                                                size={32} 
-                                                                strokeWidth={isWin ? 3 : 2} 
+                                                            <asset.icon
+                                                                size={32}
+                                                                strokeWidth={isWin ? 3 : 2}
                                                                 className={cn(isWin ? "animate-pulse drop-shadow-[0_0_10px_currentColor]" : "")}
                                                             />
                                                         </div>
@@ -598,13 +597,13 @@ export function GatesOfClicker() {
                     disabled={gameState !== 'IDLE' && !isFreeSpinMode}
                     className={cn(
                         "w-full h-16 rounded-full font-black text-xl tracking-widest uppercase shadow-xl flex items-center justify-center gap-2",
-                        gameState !== 'IDLE' 
-                            ? "bg-gray-800 text-gray-500 cursor-not-allowed" 
+                        gameState !== 'IDLE'
+                            ? "bg-gray-800 text-gray-500 cursor-not-allowed"
                             : "bg-gradient-to-b from-green-500 to-green-700 text-white hover:brightness-110 active:scale-95"
                     )}
                 >
                     {isFreeSpinMode ? (
-                         <span>AUTO-SPIN ({freeSpins})</span>
+                        <span>AUTO-SPIN ({freeSpins})</span>
                     ) : (
                         gameState === 'IDLE' ? "GIRAR" : "JUGANDO..."
                     )}
@@ -613,4 +612,3 @@ export function GatesOfClicker() {
         </div>
     );
 }
-```
