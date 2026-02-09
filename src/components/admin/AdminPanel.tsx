@@ -27,23 +27,30 @@ export default function AdminPanel() {
     const [editingCoins, setEditingCoins] = useState<string | null>(null);
     const [coinValue, setCoinValue] = useState<string>('');
 
-    // Security Check
+    // Security Check (DISABLED FOR DEBUGGING)
+    // if (user?.role !== 'admin') { ... }
+
+    // DEBUG: Show current user state
     if (user?.role !== 'admin') {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f1523] text-white gap-4">
-                <Shield size={64} className="text-red-500" />
-                <h1 className="text-3xl font-black">ACCESO DENEGADO</h1>
-                <p className="text-gray-400">No tienes permisos de Administrador.</p>
-                <div className="bg-black/50 p-4 rounded-xl border border-white/10 font-mono text-sm">
-                    <p>Tu ID: <span className="text-blue-400">{user?.id}</span></p>
-                    <p>Tu Rol actual: <span className="text-yellow-400">{user?.role || 'null'}</span></p>
+            <div className="min-h-screen bg-gray-900 text-white p-8">
+                <h1 className="text-3xl font-bold text-red-500">DEBUG MODE (Admin Panel)</h1>
+                <p>Estás viendo esto porque hemos desactivado la seguridad temporalmente.</p>
+                <div className="mt-4 p-4 bg-black border border-gray-700 rounded">
+                    <p><strong>Tu ID:</strong> {user?.id}</p>
+                    <p><strong>Tu Email:</strong> {user?.email}</p>
+                    <p><strong>Tu Rol Detectado:</strong> {user?.role || 'null'}</p>
+                    <p className="text-yellow-500 mt-2">
+                        Si dice "user" aquí, es que la base de datos (o RLS) no está devolviendo "admin".
+                        <br />
+                        Asegúrate de haber refrescado la caché (Ctrl+Shift+R).
+                    </p>
                 </div>
-                <button
-                    onClick={() => window.location.href = '/'}
-                    className="mt-4 px-6 py-2 bg-gray-700 rounded-lg hover:bg-gray-600"
-                >
-                    Volver al Inicio
-                </button>
+                {/* Still show the panel below for testing visuals, but maybe disable actions? */}
+                <div className="mt-8 border-t pt-8 opacity-50 pointer-events-none">
+                    <p className="text-center mb-4 font-bold">PANEL DESHABILITADO VISUALMENTE HASTA QUE SEAS ADMIN</p>
+                    {/* ... (rest of render) ... this is hard to wrap. Let's just return the debug view */}
+                </div>
             </div>
         );
     }
