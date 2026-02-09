@@ -130,12 +130,12 @@ export function GatesOfClicker() {
         const rand = Math.random();
         const id = Math.random().toString(36).substr(2, 9);
 
-        // VOLATILITY TUNING V3.2
+        // VOLATILITY TUNING V4.0 (NERFED)
         // Harder to trigger bonus, harder to get multipliers.
-        const scatterBase = 0.008; // 0.8% (approx 1 in 125)
+        const scatterBase = 0.003; // 0.3% (approx 1 in 333)
         const scatterChance = isAnte ? scatterBase * 2 : scatterBase;
 
-        const multChance = 0.015; // 1.5% chance for multiplier orb
+        const multChance = 0.005; // 0.5% chance for multiplier orb (was 1.5%)
 
         let symbol = '';
         let multValue = undefined;
@@ -146,25 +146,25 @@ export function GatesOfClicker() {
             symbol = 'mult';
             // Adjusted Orb Weights: mostly small ones
             const orbRand = Math.random();
-            if (orbRand > 0.995) multValue = 500; // 0.5% of orbs
-            else if (orbRand > 0.95) multValue = 100; // 4.5%
-            else if (orbRand > 0.85) multValue = 50; // 10%
-            else if (orbRand > 0.60) multValue = 10; // 25%
-            else multValue = [2, 3, 4, 5, 8][Math.floor(Math.random() * 5)]; // 60%
+            if (orbRand > 0.998) multValue = 500; // 0.2% of orbs
+            else if (orbRand > 0.98) multValue = 100; // 2%
+            else if (orbRand > 0.90) multValue = 50; // 8%
+            else if (orbRand > 0.70) multValue = 10; // 20%
+            else multValue = [2, 3, 4, 5, 8][Math.floor(Math.random() * 5)]; // 70%
         } else {
             // WEIGHTED SYMBOL SELECTION
-            // Shapes (Low Pay): 85%
-            // Relics (High Pay): 15%
+            // Shapes (Low Pay): 92% (was 85%)
+            // Relics (High Pay): 8% (was 15%)
             const symbolRand = Math.random();
             const lowPayKeys = ['shape_circle', 'shape_square', 'shape_triangle', 'shape_hex', 'shape_gem'];
 
-            if (symbolRand < 0.85) {
+            if (symbolRand < 0.92) {
                 symbol = lowPayKeys[Math.floor(Math.random() * lowPayKeys.length)];
             } else {
                 // Within High Pay, Crown is harder
                 const highRand = Math.random();
-                if (highRand > 0.80) symbol = 'relic_crown'; // ~3% total
-                else if (highRand > 0.45) symbol = 'relic_battery';
+                if (highRand > 0.85) symbol = 'relic_crown'; // ~1.2% total
+                else if (highRand > 0.50) symbol = 'relic_battery';
                 else symbol = 'relic_mouse';
             }
         }

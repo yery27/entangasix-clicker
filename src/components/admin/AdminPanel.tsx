@@ -7,6 +7,7 @@ import {
     UserX, UserCheck, RefreshCw, Save, Activity, Users, DollarSign, Lock
 } from 'lucide-react';
 import { formatCurrency } from '../../lib/utils';
+import { motion } from 'framer-motion';
 
 interface PlayerProfile {
     id: string;
@@ -97,7 +98,7 @@ export default function AdminPanel() {
         toast.success(`Monedas actualizadas a ${formatCurrency(amount)}`);
     };
 
-    const resetUser = async (playerId: string) => {
+    const wipeUser = async (playerId: string) => {
         if (!window.confirm("¿Seguro que quieres reiniciar a ESTE usuario? Perderá TODO.")) return;
 
         await supabase.from('profiles').update({ coins: 0, click_power: 1, auto_clickers: 0 }).eq('id', playerId);
@@ -285,31 +286,33 @@ export default function AdminPanel() {
                                                     {/* Ban Toggle */}
                                                     <button
                                                         onClick={() => toggleBan(player.id, player.is_banned)}
+                                                        className={`p-2 rounded-lg transition ${player.is_banned
+                                                            ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20'
                                                             : 'bg-red-500/10 text-red-500 hover:bg-red-500/20'
                                                             }`}
-                                                    title={player.is_banned ? "Desbanear" : "Banear"}
+                                                        title={player.is_banned ? "Desbanear" : "Banear"}
                                                     >
-                                                    {player.is_banned ? <UserCheck size={18} /> : <UserX size={18} />}
-                                                </button>
+                                                        {player.is_banned ? <UserCheck size={18} /> : <Ban size={18} />}
+                                                    </button>
 
-                                                {/* WIPE BUTTON */}
-                                                <button
-                                                    onClick={() => wipeUser(player.id, player.username)}
-                                                    className="p-2 bg-gray-700/50 text-gray-400 rounded-lg hover:bg-red-900/50 hover:text-red-400 transition"
-                                                    title="Reiniciar Progreso (Wipe)"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
-                                            </div>
-                                        </td>
+                                                    {/* Wipe */}
+                                                    <button
+                                                        onClick={() => wipeUser(player.id)}
+                                                        className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                                        title="Resetear Progreso"
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                </div>
+                                            </td>
                                         </tr>
-                            ))
+                                    ))
                                 )}
-                        </tbody>
-                    </table>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
-        </div >
     );
 }

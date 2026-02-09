@@ -68,18 +68,6 @@ export default function App() {
             }
           )
           .subscribe();
-
-        return () => {
-          if (cleanup) cleanup();
-          supabase.removeChannel(channel);
-        };
-      }
-
-      return () => {
-        active = false;
-        if (cleanup) cleanup();
-
-        // Attempt to save on unmount/close
         useGameStore.getState().saveGame();
       };
     }, [isAuthenticated, loadGame]);
