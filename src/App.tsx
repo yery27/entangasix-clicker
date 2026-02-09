@@ -68,9 +68,23 @@ export default function App() {
             }
           )
           .subscribe();
-        useGameStore.getState().saveGame();
-      };
-    }, [isAuthenticated, loadGame]);
+
+        // Cleanup listener on unmount/re-auth
+        return () => {
+          if (cleanup) cleanup();
+          supabase.removeChannel(channel);
+        };
+      }
+    }
+
+    return () => {
+      active = false;
+      if (cleanup) cleanup();
+
+      // Attempt to save on unmount/close
+      useGameStore.getState().saveGame();
+    };
+  }, [isAuthenticated, loadGame]);
 
   // Game Loop
   useEffect(() => {
@@ -86,67 +100,40 @@ export default function App() {
   useEffect(() => {
     const checkVersion = async () => {
       try {
-        const response = await fetch('/version.json?t=' + Date.now());
-        if (!response.ok) return;
-        const data = await response.json();
-        const currentVersion = localStorage.getItem('app_version');
+        const res = await fetch('/version.json?t=' + Date.now());
+        if (res.ok) {
+          const data = await res.json();
+          const localTimestamp = localStorage.getItem('app_version_timestamp');
 
-        if (currentVersion && currentVersion !== data.version) {
-          // New version detected!
-          console.log('🔄 New version detected. Preparing to update...');
-          setIsUpdating(true); // Show overlay
-
-          localStorage.setItem('app_version', data.version);
-
-          // Clear cache and reload after delay
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(registrations => {
-              for (let registration of registrations) {
-                registration.unregister();
-              }
-            });
+          if (localTimestamp && data.timestamp > localTimestamp) {
+            console.log("New version detected!", data);
+            // Optional: Show toast or force refresh
+            // setIsUpdating(true); 
           }
-
-          // Delay reload to let user see "Updating" screen
-          setTimeout(() => {
-            window.location.reload();
-          }, 3000);
-
-        } else if (!currentVersion) {
-          // First load or storage cleared, set version
-          localStorage.setItem('app_version', data.version);
+          localStorage.setItem('app_version_timestamp', data.timestamp);
         }
-      } catch (error) {
-        // Silent fail (offline or dev)
-        console.warn('Version check failed', error);
+      } catch (e) {
+        // quiet fail
       }
     };
-
-    // Check version every 30 seconds
-    const interval = setInterval(checkVersion, 30000);
-    // Initial check
+    // Check on mount and periodically
     checkVersion();
-
+    const interval = setInterval(checkVersion, 60 * 60 * 1000); // Every hour
     return () => clearInterval(interval);
   }, []);
 
-  if (isUpdating) {
-    return (
-      <div className="fixed inset-0 bg-[#0f1523] z-[9999] flex flex-col items-center justify-center">
-        <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <h1 className="text-2xl font-black text-white mb-2">ACTUALIZANDO SISTEMA</h1>
-        <p className="text-gray-400">Instalando mejoras... Por favor espere.</p>
-      </div>
-    );
-  }
 
   return (
     <BrowserRouter>
-      <Toaster position="top-center" richColors theme="dark" />
+      <Toaster position="top-center" theme="dark" richColors />
       <SpeedInsights />
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={
+          isAuthenticated ? <Navigate to="/" replace /> : <Login />
+        } />
+        <Route path="/register" element={
+          isAuthenticated ? <Navigate to="/" replace /> : <Register />
+        } />
 
         <Route path="/" element={
           <ProtectedRoute>
@@ -158,7 +145,7 @@ export default function App() {
           <Route path="shop" element={<Shop />} />
           <Route path="casino" element={<Casino />} />
           <Route path="leaderboard" element={<Leaderboard />} />
-          <Route path="game-leaderboard" element={<GameLeaderboard />} />
+          <Route path="leaderboard/game/:gameId" element={<GameLeaderboard />} />
           <Route path="profile" element={<Profile />} />
           <Route path="admin" element={<AdminPanel />} />
         </Route>
