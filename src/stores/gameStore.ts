@@ -366,7 +366,7 @@ export const useGameStore = create<GameState>()(
                         return;
                     }
 
-                    const MIGRATION_VERSION = 2; // INCREMENT TO WIPE EVERYONE (V2: Include GameStats)
+                    // const MIGRATION_VERSION = 2; // DISBALED FOR EMERGENCY FIX
 
                     if (profile) {
                         // Load Game Stats
@@ -374,37 +374,13 @@ export const useGameStore = create<GameState>()(
                             ? JSON.parse(profile.game_stats)
                             : profile.game_stats || {};
 
-                        // CHECK MIGRATION (FORCE WIPE)
-                        const cloudMigration = gStats._migration_version || 0;
+                        // CHECK MIGRATION (DISABLED FOR EMERGENCY FIX)
+                        // const cloudMigration = gStats._migration_version || 0;
 
-                        if (cloudMigration < MIGRATION_VERSION) {
-                            console.warn('⚠️ MIGRATION DETECTED: Wiping Progress...');
-                            const newState = {
-                                coins: 0,
-                                lifetimeCoins: 0,
-                                clickPower: 1,
-                                autoClickPower: 0,
-                                inventory: {},
-                                cosmetics: { owned: [], equipped: {} },
-                                // WIPE GAME STATS TOO (Previous version kept them)
-                                gameStats: { _migration_version: MIGRATION_VERSION },
-                                timeStats: {
-                                    weekly: { id: '', score: 0 },
-                                    monthly: { id: '', score: 0 },
-                                    annual: { id: '', score: 0 }
-                                }
-                            };
-
-                            set({
-                                ...newState,
-                                isLoaded: true
-                            });
-
-                            // Force Save immediately to overwrite Cloud
-                            setTimeout(() => get().saveGame(), 500);
-                            toast.info("🔄 Temporada 2: Progreso Reiniciado");
-                            return;
-                        }
+                        // if (cloudMigration < MIGRATION_VERSION) {
+                        //     console.warn('⚠️ MIGRATION DETECTED: Wiping Progress...');
+                        //     // Logic disabled to prevent data loss on existing users
+                        // }
 
                         // Normal Load
                         const tStats = gStats._time_stats || {
