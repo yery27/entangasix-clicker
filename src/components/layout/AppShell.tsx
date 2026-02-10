@@ -61,9 +61,7 @@ export function AppShell() {
             {/* Sidebar (Desktop) */}
             <aside className="hidden md:flex flex-col w-64 border-r border-white/10 bg-cyber-gray/50 backdrop-blur-md p-4 z-20">
                 <div className="flex items-center gap-2 mb-8 px-2">
-                    <div className="w-8 h-8 rounded bg-gradient-to-br from-cyber-DEFAULT to-cyber-purple flex items-center justify-center font-bold">
-                        E
-                    </div>
+
                     <img src="/logo.png" alt="ENTANGASIX" className="w-40 h-auto object-contain drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]" />
                 </div>
 

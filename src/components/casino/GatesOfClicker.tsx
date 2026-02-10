@@ -99,6 +99,7 @@ export function GatesOfClicker() {
     const [isFreeSpinMode, setIsFreeSpinMode] = useState(false);
     const [globalFreeSpinMult, setGlobalFreeSpinMult] = useState(0);
     // Auto-spin trigger
+    const currentSpinWinRef = useRef(0);
     const triggerNextSpin = useRef(false);
 
     // Visuals
@@ -201,6 +202,7 @@ export function GatesOfClicker() {
             setGlobalFreeSpinMult(0);
             playSound.spin();
             setRoundWin(0);
+            currentSpinWinRef.current = 0; // Reset logic ref
         } else {
             // In Free Spins, we accumulate session win
         }
@@ -209,6 +211,7 @@ export function GatesOfClicker() {
         setTotalMult(0);
         setWinningGroups([]);
         setRoundWin(0); // Reset round win for THIS SPECIFIC SPIN (session win keeps tally)
+        currentSpinWinRef.current = 0; // Ensure reset for current spin logic
         clearAllTimeouts(); // Clear any pending timeouts from previous rounds
 
         await new Promise(resolve => safeSetTimeout(() => resolve(true), 200));
@@ -311,7 +314,10 @@ export function GatesOfClicker() {
             // SHOW WINS
             setWinningGroups(newWinningGroups);
             playSound.win();
-            setRoundWin(prev => prev + stepWin);
+
+            // UPDATE REF AND STATE
+            currentSpinWinRef.current += stepWin;
+            setRoundWin(currentSpinWinRef.current);
 
             // Dramatic Effect if Big Win
             if (stepWin > bet * 10) triggerShake('light');
@@ -341,7 +347,7 @@ export function GatesOfClicker() {
 
         } else {
             // NO MORE WINS
-            finalizeRound(roundWin, scatters, roundMultValues);
+            finalizeRound(currentSpinWinRef.current, scatters, roundMultValues);
         }
     };
 
