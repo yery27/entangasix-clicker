@@ -57,8 +57,7 @@ const SYMBOLS: Record<string, SymbolType> = {
 
 
 // Special Symbols
-// Using Emoji for now but styled heavily
-const ZEUS_HEAD = '🌩️';
+
 
 const MULTIPLIER_ORBS = [
     { value: 2, color: 'bg-green-500', glow: 'shadow-[0_0_20px_#22c55e]' },
@@ -616,7 +615,14 @@ export function GatesOfClicker() {
                                                         isMult ? "" : "bg-[#1f1a29]" // Dark cell bg
                                                     )}
                                                 >
-                                                    {isScatter && <span className="text-4xl animate-bounce">{ZEUS_HEAD}</span>}
+
+                                                    {isScatter && (
+                                                        <img
+                                                            src="/scatter.png"
+                                                            alt="SCATTER"
+                                                            className="w-[80%] h-[80%] object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] animate-pulse"
+                                                        />
+                                                    )}
                                                     {isMult && (
                                                         <div className={cn(
                                                             "w-10 h-10 rounded-full flex items-center justify-center border-2 border-white font-black text-xs text-white shadow-lg",
