@@ -19,6 +19,7 @@ interface PlayerProfile {
     is_banned: boolean;
     ban_reason?: string; // New V3
     last_seen: string;
+    game_stats?: any; // New V3: For Sync Logic
 }
 
 export default function AdminPanel() {
@@ -144,14 +145,36 @@ export default function AdminPanel() {
 
         if (isNaN(amount)) return toast.error("Cantidad inválida");
 
-        const updates: any = { coins: amount };
+        // 1. Get current stats to preserve them
+        const player = players.find(p => p.id === playerId);
+        const currentStats = typeof player?.game_stats === 'string'
+            ? JSON.parse(player.game_stats)
+            : player?.game_stats || {};
+
+        // 2. Add Force Sync Timestamp
+        const newStats = {
+            ...currentStats,
+            _force_sync_timestamp: Date.now()
+        };
+
+        const updates: any = {
+            coins: amount,
+            game_stats: newStats
+        };
+
         if (!isNaN(lifetime)) updates.lifetime_coins = lifetime;
 
-        await supabase.from('profiles').update(updates).eq('id', playerId);
+        const { error } = await supabase.from('profiles').update(updates).eq('id', playerId);
+
+        if (error) {
+            toast.error("Error al actualizar");
+            console.error(error);
+            return;
+        }
 
         setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, ...updates } : p));
         setEditingCoins(null);
-        toast.success(`Saldo actualizado`);
+        toast.success(`Saldo actualizado (Forzado)`);
     };
 
     const wipeUser = async (playerId: string) => {

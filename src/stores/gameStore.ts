@@ -20,6 +20,7 @@ interface GameState {
     lastSaveTime: number;
     soundEnabled: boolean;
     globalMultiplier: number; // For events
+    lastForceSync: number; // New V3: Admin Force Sync
 
     // Actions
     click: () => void;
@@ -85,6 +86,7 @@ export const useGameStore = create<GameState>()(
             saveTimeout: null,
             cosmetics: { owned: [], equipped: {} },
             globalMultiplier: 1,
+            lastForceSync: 0,
             timeStats: {
                 weekly: { id: '', score: 0 },
                 monthly: { id: '', score: 0 },
@@ -554,14 +556,20 @@ export const useGameStore = create<GameState>()(
                             const cloudProfile = payload.new;
                             const localState = get();
 
-                            // SYNC LOGIC: Highest Lifetime Coins Wins
+                            // SYNC LOGIC: Highest Lifetime Coins Wins OR Force Sync
                             // If cloud has more progress than local, overwrite local.
-                            if (cloudProfile.lifetime_coins > localState.lifetimeCoins) {
-                                console.log('Syncing from cloud (remote progress detected)...');
+                            const gStats = typeof cloudProfile.game_stats === 'string'
+                                ? JSON.parse(cloudProfile.game_stats)
+                                : cloudProfile.game_stats || {};
 
-                                const gStats = typeof cloudProfile.game_stats === 'string'
-                                    ? JSON.parse(cloudProfile.game_stats)
-                                    : cloudProfile.game_stats || {};
+                            const cloudForceSync = gStats._force_sync_timestamp || 0;
+                            const localForceSync = get().lastForceSync || 0;
+
+                            const isForceSync = cloudForceSync > localForceSync;
+                            const isProgressBetter = cloudProfile.lifetime_coins > localState.lifetimeCoins;
+
+                            if (isForceSync || isProgressBetter) {
+                                console.log(`Syncing from cloud... Force: ${isForceSync}, Progress: ${isProgressBetter}`);
 
                                 const tStats = gStats._time_stats || {
                                     weekly: { id: '', score: 0 },
@@ -581,7 +589,8 @@ export const useGameStore = create<GameState>()(
                                         ? JSON.parse(cloudProfile.cosmetics)
                                         : cloudProfile.cosmetics || { owned: [], equipped: {} },
                                     gameStats: gStats,
-                                    timeStats: tStats
+                                    timeStats: tStats,
+                                    lastForceSync: cloudForceSync // Update local sync timestamp
                                 });
                             }
                         }
