@@ -98,7 +98,9 @@ export function GatesOfClicker() {
     const [freeSpins, setFreeSpins] = useState(0);
     const [isFreeSpinMode, setIsFreeSpinMode] = useState(false);
     const [globalFreeSpinMult, setGlobalFreeSpinMult] = useState(0);
+
     // Auto-spin trigger
+    const [isAutoSpinning, setIsAutoSpinning] = useState(false);
     const currentSpinWinRef = useRef(0);
     const triggerNextSpin = useRef(false);
 
@@ -111,6 +113,8 @@ export function GatesOfClicker() {
     useEffect(() => {
         return () => clearAllTimeouts();
     }, []);
+
+
 
     const clearAllTimeouts = () => {
         timeoutsRef.current.forEach(t => clearTimeout(t));
@@ -195,6 +199,7 @@ export function GatesOfClicker() {
         if (!isFreeSpinMode) {
             if (coins < cost) {
                 toast.error("¡Necesitas más clicks!");
+                setIsAutoSpinning(false);
                 return;
             }
             removeCoins(cost);
@@ -234,6 +239,17 @@ export function GatesOfClicker() {
 
     }, [bet, anteBet, coins, gameState, isFreeSpinMode, freeSpins, removeCoins]);
 
+
+
+    // --- EFFECT: AUTO SPIN LOOP ---
+    useEffect(() => {
+        if (isAutoSpinning && gameState === 'IDLE' && !isFreeSpinMode) {
+            const timer = setTimeout(() => {
+                spin();
+            }, 500); // Small delay between auto-spins
+            timeoutsRef.current.push(timer);
+        }
+    }, [isAutoSpinning, gameState, isFreeSpinMode, spin]);
 
     // --- EFFECT: FREE SPINS LOOP ---
     // Moved here to be after 'spin' declaration
@@ -419,6 +435,7 @@ export function GatesOfClicker() {
         if (scatters >= SCATTER_TRIGGER) {
             playSound.jackpot();
             triggerShake('heavy');
+            setIsAutoSpinning(false);
             if (!isFreeSpinMode) {
                 toast.success("⚡ 15 GIROS GRATIS ⚡");
                 setIsFreeSpinMode(true);
@@ -628,13 +645,27 @@ export function GatesOfClicker() {
                 </div>
             </div>
 
-            {/* BIG SPIN BUTTON */}
-            <div className="w-full max-w-md mt-6 z-20">
+            {/* BIG SPIN BUTTON & AUTO TOGGLE */}
+            <div className="w-full max-w-md mt-6 z-20 flex gap-4">
+                <button
+                    onClick={() => setIsAutoSpinning(!isAutoSpinning)}
+                    disabled={isFreeSpinMode}
+                    className={cn(
+                        "h-16 w-16 rounded-2xl font-bold flex flex-col items-center justify-center transition-all shadow-lg border-2",
+                        isAutoSpinning
+                            ? "bg-red-500/20 border-red-500 text-red-400 hover:bg-red-500/30"
+                            : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:border-white/20"
+                    )}
+                >
+                    <span className="text-xs">AUTO</span>
+                    <div className={cn("w-3 h-3 rounded-full mt-1", isAutoSpinning ? "bg-red-500 animate-pulse" : "bg-gray-600")} />
+                </button>
+
                 <button
                     onClick={spin}
                     disabled={gameState !== 'IDLE' && !isFreeSpinMode}
                     className={cn(
-                        "w-full h-16 rounded-full font-black text-xl tracking-widest uppercase shadow-xl flex items-center justify-center gap-2",
+                        "flex-1 h-16 rounded-full font-black text-xl tracking-widest uppercase shadow-xl flex items-center justify-center gap-2",
                         gameState !== 'IDLE'
                             ? "bg-gray-800 text-gray-500 cursor-not-allowed"
                             : "bg-gradient-to-b from-green-500 to-green-700 text-white hover:brightness-110 active:scale-95"
@@ -643,7 +674,7 @@ export function GatesOfClicker() {
                     {isFreeSpinMode ? (
                         <span>AUTO-SPIN ({freeSpins})</span>
                     ) : (
-                        gameState === 'IDLE' ? "GIRAR" : "JUGANDO..."
+                        gameState === 'IDLE' ? (isAutoSpinning ? "DETENER" : "GIRAR") : "JUGANDO..."
                     )}
                 </button>
             </div>
