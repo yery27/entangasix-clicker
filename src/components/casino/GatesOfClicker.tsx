@@ -5,7 +5,8 @@ import { toast } from 'sonner';
 import { cn, formatCurrency } from '../../lib/utils';
 import {
     Zap, MousePointer2, Crown,
-    Gem, Hexagon, Triangle, Square, Circle, Star, Moon
+    Gem, Hexagon, Triangle, Square, Circle, Star, Moon,
+    Info, X
 } from 'lucide-react';
 import { playSound } from '../../lib/soundManager';
 
@@ -102,6 +103,10 @@ export function GatesOfClicker() {
     const [isAutoSpinning, setIsAutoSpinning] = useState(false);
     const currentSpinWinRef = useRef(0);
     const triggerNextSpin = useRef(false);
+
+    // Dialogs & Overlays
+    const [showBonusIntro, setShowBonusIntro] = useState(false);
+    const [showInfo, setShowInfo] = useState(false);
 
     // Visuals
     const [shake, setShake] = useState(false);
@@ -436,11 +441,16 @@ export function GatesOfClicker() {
             triggerShake('heavy');
             setIsAutoSpinning(false);
             if (!isFreeSpinMode) {
-                toast.success("⚡ 15 GIROS GRATIS ⚡");
-                setIsFreeSpinMode(true);
-                setFreeSpins(15);
-                setGlobalFreeSpinMult(0);
-                triggerNextSpin.current = true; // Start loop
+                // TRIGGER BONUS ANIMATION
+                setShowBonusIntro(true);
+                setTimeout(() => {
+                    setShowBonusIntro(false);
+                    toast.success("⚡ 15 GIROS GRATIS ⚡");
+                    setIsFreeSpinMode(true);
+                    setFreeSpins(15);
+                    setGlobalFreeSpinMult(0);
+                    triggerNextSpin.current = true; // Start loop
+                }, 4000); // Wait for animation
             } else {
                 toast.success("⚡ RETRIGGER: +5 GIROS ⚡");
                 setFreeSpins(prev => prev + 5);
@@ -475,6 +485,13 @@ export function GatesOfClicker() {
             {/* HEADER */}
             <div className="z-10 w-full flex justify-between items-center mb-6 px-4 py-2 bg-black/20 rounded-xl backdrop-blur-sm border border-white/5">
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setShowInfo(true)}
+                        className="p-2 hover:bg-white/10 rounded-full transition-colors mr-2 text-gray-400 hover:text-white"
+                        title="Información y Reglas"
+                    >
+                        <Info size={24} />
+                    </button>
                     <Zap className="text-amber-500 fill-amber-500" />
                     <h1 className="text-2xl font-black italic text-amber-400">GATES OF CLICKER</h1>
                 </div>
@@ -684,6 +701,97 @@ export function GatesOfClicker() {
                     )}
                 </button>
             </div>
+
+            {/* BONUS INTRO OVERLAY */}
+            <AnimatePresence>
+                {showBonusIntro && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md"
+                    >
+                        <motion.div
+                            initial={{ scale: 0, rotate: -180 }}
+                            animate={{ scale: 1, rotate: 0 }}
+                            transition={{ type: "spring", bounce: 0.5, duration: 1 }}
+                            className="text-center"
+                        >
+                            <h2 className="text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-amber-600 drop-shadow-[0_0_50px_rgba(245,158,11,0.8)] mb-8">
+                                ¡MODO DIOS!
+                            </h2>
+                            <motion.div
+                                initial={{ y: 50, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.5 }}
+                                className="text-4xl font-bold text-white animate-pulse"
+                            >
+                                ⚡ 15 GIROS GRATIS ⚡
+                            </motion.div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* INFO MODAL */}
+            <AnimatePresence>
+                {showInfo && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+                        onClick={() => setShowInfo(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.9, y: 20 }}
+                            onClick={e => e.stopPropagation()}
+                            className="bg-[#1a1525] border-2 border-amber-600/50 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl"
+                        >
+                            <div className="flex justify-between items-center p-6 border-b border-white/10 sticky top-0 bg-[#1a1525] z-10">
+                                <h2 className="text-2xl font-bold text-amber-400 flex items-center gap-2">
+                                    <Info className="text-amber-500" /> Reglas del Juego
+                                </h2>
+                                <button onClick={() => setShowInfo(false)} className="text-gray-400 hover:text-white">
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            <div className="p-6 space-y-8 text-gray-300">
+                                <section>
+                                    <h3 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
+                                        <Gem className="text-purple-400" size={20} /> Pagos de Símbolos
+                                    </h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                        {Object.values(SYMBOLS).sort((a, b) => b.payouts[2] - a.payouts[2]).map(s => (
+                                            <div key={s.id} className="bg-white/5 p-3 rounded-lg flex flex-col items-center gap-2 border border-white/5">
+                                                <s.icon className={cn("w-8 h-8", s.color)} />
+                                                <div className="text-xs w-full space-y-1 mt-1">
+                                                    <div className="flex justify-between"><span>8-9</span> <span className="text-white font-mono">{s.payouts[0]}x</span></div>
+                                                    <div className="flex justify-between"><span>10-11</span> <span className="text-white font-mono">{s.payouts[1]}x</span></div>
+                                                    <div className="flex justify-between font-bold text-amber-200"><span>12+</span> <span className="font-mono">{s.payouts[2]}x</span></div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+
+                                <section>
+                                    <h3 className="text-white font-bold text-lg mb-2">⚡ Características</h3>
+                                    <ul className="list-disc list-inside space-y-2 text-sm">
+                                        <li><strong className="text-amber-400">Tumble:</strong> Los símbolos ganadores desaparecen y caen nuevos.</li>
+                                        <li><strong className="text-green-400">Multiplicadores:</strong> Orbes de 2x hasta 500x. Se suman y multiplican la ganancia TOTAL del giro.</li>
+                                        <li><strong className="text-purple-400">Giros Gratis:</strong> 4 o más Scatters activan 15 giros. Durante los giros, los multiplicadores se ACUMULAN.</li>
+                                        <li><strong className="text-blue-400">Doble Probabilidad:</strong> Aumenta el costo un 25% pero duplica la chance de Scatters.</li>
+                                    </ul>
+                                </section>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
