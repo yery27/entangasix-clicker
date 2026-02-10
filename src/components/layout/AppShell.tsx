@@ -64,7 +64,7 @@ export function AppShell() {
                     <div className="w-8 h-8 rounded bg-gradient-to-br from-cyber-DEFAULT to-cyber-purple flex items-center justify-center font-bold">
                         E
                     </div>
-                    <h1 className="text-xl font-bold tracking-tighter neon-text">ENTANGASIX</h1>
+                    <img src="/logo.png" alt="ENTANGASIX" className="w-40 h-auto object-contain drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]" />
                 </div>
 
                 <nav className="flex-1 space-y-2">
@@ -119,7 +119,7 @@ export function AppShell() {
             {/* Main Content */}
             <main className="flex-1 overflow-y-auto overflow-x-hidden relative z-10 pb-20 md:pb-0">
                 <div className="md:hidden flex items-center justify-between p-4 border-b border-white/10 bg-cyber-gray/80 backdrop-blur sticky top-0 z-30">
-                    <span className="font-bold neon-text">ENTANGASIX</span>
+                    <img src="/logo.png" alt="ENTANGASIX" className="h-8 w-auto object-contain" />
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setIsSocialOpen(true)}

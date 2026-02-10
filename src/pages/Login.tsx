@@ -40,7 +40,7 @@ export default function Login() {
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyber-DEFAULT to-transparent" />
 
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold tracking-tight mb-2 neon-text">ENTANGASIX</h1>
+                    <img src="/logo.png" alt="ENTANGASIX" className="w-64 h-auto mx-auto mb-6 drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]" />
                     <p className="text-gray-400">Identifícate para comenzar el hackeo.</p>
                 </div>
 

@@ -39,6 +39,7 @@ export default function Register() {
                 className="w-full max-w-md bg-cyber-gray/80 backdrop-blur-lg border border-white/10 p-8 rounded-2xl shadow-2xl relative overflow-hidden"
             >
                 <div className="text-center mb-8">
+                    <img src="/logo.png" alt="ENTANGASIX" className="w-48 h-auto mx-auto mb-6 drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]" />
                     <h1 className="text-3xl font-bold tracking-tight mb-2 neon-text">NUEVO AGENTE</h1>
                     <p className="text-gray-400">Crea tu identidad digital.</p>
                 </div>

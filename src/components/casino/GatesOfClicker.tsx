@@ -5,11 +5,11 @@ import { toast } from 'sonner';
 import { cn, formatCurrency } from '../../lib/utils';
 import {
     Zap, MousePointer2, Crown,
-    Gem, Hexagon, Triangle, Square, Circle
+    Gem, Hexagon, Triangle, Square, Circle, Star, Moon
 } from 'lucide-react';
 import { playSound } from '../../lib/soundManager';
 
-// --- GAME CONFIGURATION V3.1 OPTIMIZED ---
+// --- GAME CONFIGURATION V3.2 REBALANCED ---
 const GRID_ROWS = 5;
 const GRID_COLS = 6;
 const MIN_MATCH = 8;
@@ -28,10 +28,7 @@ const GOD_THEME = {
 };
 
 // --- SYMBOLS & PAYTABLE ---
-// Adjusted Payouts for High Volatility
-// Low Pay: Shapes
-// High Pay: Golden Relics
-
+// Diluted Pool: Added Star and Moon to lower probability of specific shape matches
 type SymbolType = {
     id: string;
     icon: React.ElementType; // Lucide Icon
@@ -42,12 +39,14 @@ type SymbolType = {
 };
 
 const SYMBOLS: Record<string, SymbolType> = {
-    // LOW PAY
+    // LOW PAY (7 Symbols now = Harder to match 8)
     'shape_circle': { id: 'shape_circle', icon: Circle, color: 'text-blue-500', shadow: 'blue', isHighPay: false, payouts: [0.25, 0.75, 2] },
-    'shape_square': { id: 'shape_square', icon: Square, color: 'text-green-500', shadow: 'green', isHighPay: false, payouts: [0.4, 0.9, 4] },
+    'shape_square': { id: 'shape_square', icon: Square, color: 'text-green-500', shadow: 'green', isHighPay: false, payouts: [0.04, 0.9, 4] },
     'shape_triangle': { id: 'shape_triangle', icon: Triangle, color: 'text-purple-500', shadow: 'purple', isHighPay: false, payouts: [0.5, 1, 5] },
     'shape_hex': { id: 'shape_hex', icon: Hexagon, color: 'text-pink-500', shadow: 'pink', isHighPay: false, payouts: [0.8, 1.2, 8] },
     'shape_gem': { id: 'shape_gem', icon: Gem, color: 'text-red-500', shadow: 'red', isHighPay: false, payouts: [1, 1.5, 10] },
+    'shape_star': { id: 'shape_star', icon: Star, color: 'text-yellow-200', shadow: 'yellow', isHighPay: false, payouts: [1, 2, 12] },
+    'shape_moon': { id: 'shape_moon', icon: Moon, color: 'text-indigo-400', shadow: 'indigo', isHighPay: false, payouts: [1.5, 3, 15] },
 
     // HIGH PAY (Golden Artifacts)
     'relic_mouse': { id: 'relic_mouse', icon: MousePointer2, color: 'text-yellow-300', shadow: 'yellow', isHighPay: true, payouts: [2, 5, 20] }, // "Golden Cursor"
@@ -90,15 +89,14 @@ export function GatesOfClicker() {
     const [anteBet, setAnteBet] = useState(false);
 
     // Stats
-    const [roundWin, setRoundWin] = useState(0);
-    const [totalMult, setTotalMult] = useState(0);
-    const [currentWinText, setCurrentWinText] = useState<string | null>(null);
+    const [roundWin, setRoundWin] = useState(0); // Current Spin Win
+    const [totalSessionWin, setTotalSessionWin] = useState(0); // For Bonus / Accumulator
+    const [totalMult, setTotalMult] = useState(0); // Current Spin Multiplier
     const [winningGroups, setWinningGroups] = useState<{ points: { x: number, y: number }[], color: string }[]>([]); // SVG Lines
 
     // Free Spins
     const [freeSpins, setFreeSpins] = useState(0);
     const [isFreeSpinMode, setIsFreeSpinMode] = useState(false);
-    const [totalFreeSpinWin, setTotalFreeSpinWin] = useState(0);
     const [globalFreeSpinMult, setGlobalFreeSpinMult] = useState(0);
     // Auto-spin trigger
     const triggerNextSpin = useRef(false);
@@ -130,8 +128,7 @@ export function GatesOfClicker() {
         const rand = Math.random();
         const id = Math.random().toString(36).substr(2, 9);
 
-        // VOLATILITY TUNING V4.0 (NERFED)
-        // Harder to trigger bonus, harder to get multipliers.
+        // VOLATILITY TUNING V4.1
         const scatterBase = 0.003; // 0.3% (approx 1 in 333)
         const scatterChance = isAnte ? scatterBase * 2 : scatterBase;
 
@@ -153,12 +150,12 @@ export function GatesOfClicker() {
             else multValue = [2, 3, 4, 5, 8][Math.floor(Math.random() * 5)]; // 70%
         } else {
             // WEIGHTED SYMBOL SELECTION
-            // Shapes (Low Pay): 92% (was 85%)
-            // Relics (High Pay): 8% (was 15%)
+            // Shapes (Low Pay): 94% (increased pool)
+            // Relics (High Pay): 6%
             const symbolRand = Math.random();
-            const lowPayKeys = ['shape_circle', 'shape_square', 'shape_triangle', 'shape_hex', 'shape_gem'];
+            const lowPayKeys = ['shape_circle', 'shape_square', 'shape_triangle', 'shape_hex', 'shape_gem', 'shape_star', 'shape_moon'];
 
-            if (symbolRand < 0.92) {
+            if (symbolRand < 0.94) {
                 symbol = lowPayKeys[Math.floor(Math.random() * lowPayKeys.length)];
             } else {
                 // Within High Pay, Crown is harder
@@ -186,27 +183,32 @@ export function GatesOfClicker() {
     const spin = useCallback(async () => {
         if (gameState !== 'IDLE' && !isFreeSpinMode) return;
 
-        // Safety Clean: Prevent spinning if in bonus mode but no spins left
-        if (isFreeSpinMode && freeSpins <= 0) return;
+        // FIXED: Infinite Loop Guard
+        if (isFreeSpinMode && freeSpins <= 0) {
+            setIsFreeSpinMode(false);
+            return;
+        }
 
         const cost = anteBet ? Math.floor(bet * 1.25) : bet;
 
         if (!isFreeSpinMode) {
             if (coins < cost) {
-                toast.error("¡Necesitas más clicks para esta apuesta de Dioses!");
+                toast.error("¡Necesitas más clicks!");
                 return;
             }
             removeCoins(cost);
-            setTotalFreeSpinWin(0);
+            setTotalSessionWin(0); // Reset for new base spin
             setGlobalFreeSpinMult(0);
             playSound.spin();
             setRoundWin(0);
+        } else {
+            // In Free Spins, we accumulate session win
         }
 
         setGameState('SPINNING');
         setTotalMult(0);
-        setCurrentWinText(null);
         setWinningGroups([]);
+        setRoundWin(0); // Reset round win for THIS SPECIFIC SPIN (session win keeps tally)
         clearAllTimeouts(); // Clear any pending timeouts from previous rounds
 
         await new Promise(resolve => safeSetTimeout(() => resolve(true), 200));
@@ -227,16 +229,15 @@ export function GatesOfClicker() {
 
         safeSetTimeout(() => processGrid(newGrid), 400);
 
-    }, [bet, anteBet, coins, gameState, isFreeSpinMode, freeSpins, removeCoins, setTotalFreeSpinWin, setGlobalFreeSpinMult, setRoundWin]);
+    }, [bet, anteBet, coins, gameState, isFreeSpinMode, freeSpins, removeCoins]);
 
 
     // --- EFFECT: FREE SPINS LOOP ---
     // Moved here to be after 'spin' declaration
     useEffect(() => {
-        if (gameState !== 'IDLE') return;
-
-        if (isFreeSpinMode) {
+        if (gameState === 'IDLE' && isFreeSpinMode) {
             if (freeSpins > 0 && triggerNextSpin.current) {
+                // CONSUME SPIN
                 triggerNextSpin.current = false;
                 const timer = setTimeout(() => {
                     setFreeSpins(prev => prev - 1);
@@ -244,14 +245,14 @@ export function GatesOfClicker() {
                 }, 1000);
                 timeoutsRef.current.push(timer);
             } else if (freeSpins <= 0) {
-                // End of Bonus - Fixed: Removed !triggerNextSpin.current check which caused soft-lock
+                // END BONUS
                 setIsFreeSpinMode(false);
                 setGlobalFreeSpinMult(0);
                 triggerNextSpin.current = false;
-                toast.info(`Fin del Modo Dios. Ganancia: ${formatCurrency(totalFreeSpinWin)}`);
+                toast.info(`Fin del Modo Dios. Ganancia Total: ${formatCurrency(totalSessionWin)}`);
             }
         }
-    }, [isFreeSpinMode, gameState, freeSpins, spin, totalFreeSpinWin]);
+    }, [gameState, isFreeSpinMode, freeSpins, spin, totalSessionWin]);
 
 
     const processGrid = async (currentGrid: GridCell[][]) => {
@@ -311,7 +312,6 @@ export function GatesOfClicker() {
             setWinningGroups(newWinningGroups);
             playSound.win();
             setRoundWin(prev => prev + stepWin);
-            setCurrentWinText(`+${formatCurrency(stepWin)}`);
 
             // Dramatic Effect if Big Win
             if (stepWin > bet * 10) triggerShake('light');
@@ -352,20 +352,22 @@ export function GatesOfClicker() {
         if (sym === 'shape_triangle') return '#a855f7'; // purple
         if (sym === 'shape_hex') return '#ec4899'; // pink
         if (sym === 'shape_gem') return '#ef4444'; // red
+        if (sym === 'shape_star') return '#fde047'; // yellow-200
+        if (sym === 'shape_moon') return '#818cf8'; // indigo-400
         if (sym === 'relic_mouse') return '#fde047'; // yellow-300
         if (sym === 'relic_battery') return '#67e8f9'; // cyan-300
         if (sym === 'relic_crown') return '#fbbf24'; // amber-400
         return '#ffffff'; // Default white
     };
 
-    const finalizeRound = async (totalWin: number, scatters: number, roundMultValues: number) => {
+    const finalizeRound = async (currentRoundWin: number, scatters: number, roundMultValues: number) => {
         setGameState('RESOLVING');
-        let finalPayout = totalWin;
+        let finalPayout = currentRoundWin;
         let appliedMult = 0;
 
         // --- GOD MODE MULTIPLIER LOGIC ---
         // 1. Accumulate Multipliers animation (if any)
-        if (roundMultValues > 0 && totalWin > 0) {
+        if (roundMultValues > 0 && currentRoundWin > 0) {
             // Visual wait for orb collection
             await new Promise(resolve => safeSetTimeout(() => resolve(true), 600));
 
@@ -374,13 +376,13 @@ export function GatesOfClicker() {
                 // "Broken" Mechanic: Add Local to Global, THEN Apply Global
                 // This scaling is exponential if user gets lucky.
                 appliedMult = globalFreeSpinMult + roundMultValues;
-                finalPayout = totalWin * appliedMult;
+                finalPayout = currentRoundWin * appliedMult;
 
                 // Shake heavy if mult applied is huge
                 if (appliedMult > 50) triggerShake('heavy');
             } else {
                 appliedMult = roundMultValues;
-                finalPayout = totalWin * appliedMult;
+                finalPayout = currentRoundWin * appliedMult;
                 if (appliedMult > 20) triggerShake('heavy');
             }
 
@@ -390,7 +392,7 @@ export function GatesOfClicker() {
 
             // Dramactic Pause after multiplier hit
             await new Promise(resolve => safeSetTimeout(() => resolve(true), 1000));
-        } else if (isFreeSpinMode && totalWin > 0 && globalFreeSpinMult > 0 && roundMultValues === 0) {
+        } else if (isFreeSpinMode && currentRoundWin > 0 && globalFreeSpinMult > 0 && roundMultValues === 0) {
             // If FreeSpin and NO new orb, usually Gates DOES NOT apply global.
             // But user asked for "Chetado". Let's apply Global if win exists?
             // "si hay 8 o más símbolos... paga" -> Logic standard.
@@ -400,12 +402,12 @@ export function GatesOfClicker() {
             // But let's be generous for the "Chetado" feel.
             // Actually, the prompt says "si un multiplicador aterriza... se suma". It doesn't explicitly say "Apply global always".
             // Let's stick to: Global applies ONLY if Local lands. This builds TENSION. You have a huge 500x global, but you NEED a 2x to land to cash it out. That is DOPAMINE.
-            finalPayout = totalWin; // No mult applied if no orb landed.
+            finalPayout = currentRoundWin; // No mult applied if no orb landed.
         }
 
         if (finalPayout > 0) {
             addCoins(finalPayout);
-            if (isFreeSpinMode) setTotalFreeSpinWin(prev => prev + finalPayout);
+            setTotalSessionWin(prev => prev + finalPayout);
         }
 
         if (scatters >= SCATTER_TRIGGER) {
@@ -420,6 +422,7 @@ export function GatesOfClicker() {
             } else {
                 toast.success("⚡ RETRIGGER: +5 GIROS ⚡");
                 setFreeSpins(prev => prev + 5);
+                triggerNextSpin.current = true;
             }
         } else if (isFreeSpinMode) {
             triggerNextSpin.current = true; // Continue loop
@@ -453,8 +456,11 @@ export function GatesOfClicker() {
                     <Zap className="text-amber-500 fill-amber-500" />
                     <h1 className="text-2xl font-black italic text-amber-400">GATES OF CLICKER</h1>
                 </div>
-                <div className="text-2xl font-mono font-bold text-green-400">
-                    {currentWinText || formatCurrency(roundWin)}
+                <div className="flex flex-col items-end">
+                    <div className="text-xs text-gray-400 uppercase tracking-widest">Ganancia Total</div>
+                    <div className="text-2xl font-mono font-bold text-green-400">
+                        {formatCurrency(totalSessionWin > 0 ? totalSessionWin : roundWin)}
+                    </div>
                 </div>
             </div>
 
@@ -524,8 +530,8 @@ export function GatesOfClicker() {
                 <div className="flex-1 relative order-1 lg:order-2 select-none">
                     <div className="relative aspect-[6/5] w-full bg-[#16121d] rounded-xl border-[4px] border-amber-800/50 shadow-2xl p-2 overflow-hidden">
 
-                        {/* WINNING LINES SVG OVERLAY */}
-                        <svg className="absolute inset-0 w-full h-full z-20 pointer-events-none">
+                        {/* WINNING LINES SVG OVERLAY - FIXED VIEWBOX */}
+                        <svg className="absolute inset-0 w-full h-full z-20 pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
                             <AnimatePresence>
                                 {winningGroups.map((group, i) => (
                                     <motion.g key={i}
@@ -549,7 +555,7 @@ export function GatesOfClicker() {
                             </AnimatePresence>
                             <defs>
                                 <filter id="glow">
-                                    <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                                    <feGaussianBlur stdDeviation="0.5" result="coloredBlur" />
                                     <feMerge>
                                         <feMergeNode in="coloredBlur" />
                                         <feMergeNode in="SourceGraphic" />
